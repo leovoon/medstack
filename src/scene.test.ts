@@ -379,6 +379,43 @@ describe('view', () => {
     )
   })
 
+  test('every wizard chip grid labels its buttons', () => {
+    const draftAt = (wizardStep: number) =>
+      Option.some({
+        maybeProductId: Option.none(),
+        wizardStep,
+        name: 'Clobetasol',
+        strength: '',
+        kind: 'Cream' as const,
+        amount: '',
+        area: '',
+        note: '',
+        defaultWaitMinutes: 20,
+        asNeeded: false,
+        thumbnail: '',
+      })
+    const editorPage = Page.ProductEditor({ productId: Option.none() })
+    scene(
+      { update, view },
+      given(modelWith({ page: editorPage, maybeProductDraft: draftAt(1) })),
+      expect(role('button', { name: 'Cream' })).toExist(),
+      expect(role('button', { name: 'Ointment' })).toExist(),
+      expect(text('What kind is it?')).toExist(),
+    )
+    scene(
+      { update, view },
+      given(modelWith({ page: editorPage, maybeProductDraft: draftAt(2) })),
+      expect(role('button', { name: 'Thin layer' })).toExist(),
+      expect(role('button', { name: '2 pumps' })).toExist(),
+    )
+    scene(
+      { update, view },
+      given(modelWith({ page: editorPage, maybeProductDraft: draftAt(4) })),
+      expect(role('button', { name: '20 min' })).toExist(),
+      expect(role('button', { name: '0 min' })).toExist(),
+    )
+  })
+
   test('the plan screen offers a prompt to copy and a paste step', () => {
     const model = modelWith({
       page: Page.Plan(),

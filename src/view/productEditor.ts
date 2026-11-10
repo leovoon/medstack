@@ -169,10 +169,14 @@ const kindStep = (
   h.div(
     [h.Class('grid grid-cols-2 gap-3')],
     Array.map(KIND_OPTIONS, kind =>
-      h.keyed('button')(kind, [
-        h.Class(chipClassName(draft.kind === kind)),
-        h.OnClick(Message.SelectedProductKind({ kind })),
-      ]),
+      h.keyed('button')(
+        kind,
+        [
+          h.Class(chipClassName(draft.kind === kind)),
+          h.OnClick(Message.SelectedProductKind({ kind })),
+        ],
+        [kind],
+      ),
     ),
   ),
 ]
@@ -186,10 +190,14 @@ const amountStep = (
   h.div(
     [h.Class('grid grid-cols-2 gap-3 mb-4')],
     Array.map(AMOUNT_OPTIONS, amount =>
-      h.keyed('button')(amount, [
-        h.Class(chipClassName(draft.amount === amount)),
-        h.OnClick(Message.SelectedProductAmount({ value: amount })),
-      ]),
+      h.keyed('button')(
+        amount,
+        [
+          h.Class(chipClassName(draft.amount === amount)),
+          h.OnClick(Message.SelectedProductAmount({ value: amount })),
+        ],
+        [amount],
+      ),
     ),
   ),
   textField(
@@ -227,10 +235,14 @@ const waitStep = (
   h.div(
     [h.Class('grid grid-cols-4 gap-3 mb-4')],
     Array.map(WAIT_OPTIONS, minutes =>
-      h.keyed('button')(String(minutes), [
-        h.Class(chipClassName(draft.defaultWaitMinutes === minutes)),
-        h.OnClick(Message.SelectedProductWait({ minutes })),
-      ]),
+      h.keyed('button')(
+        String(minutes),
+        [
+          h.Class(chipClassName(draft.defaultWaitMinutes === minutes)),
+          h.OnClick(Message.SelectedProductWait({ minutes })),
+        ],
+        [`${minutes} min`],
+      ),
     ),
   ),
   h.div(
