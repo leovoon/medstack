@@ -3,6 +3,7 @@ import { SecureRandom } from 'effect/crypto'
 import { KeyValueStore } from 'effect/persistence'
 import { Command } from 'foldkit'
 import * as File from 'foldkit/file'
+import Tesseract, { PSM } from 'tesseract.js'
 
 import { BrowserCrypto, BrowserKeyValueStore } from '@effect/platform-browser'
 
@@ -269,4 +270,103 @@ export const MarkRoutineReviewed = Command.define('MarkRoutineReviewed', {
       const atMs = yield* Clock.currentTimeMillis
       return Message.CompletedMarkRoutineReviewed({ routineId, atMs })
     }),
+})
+
+const OCR_WORKER_EFFECT = Effect.cached(
+  Effect.tryPromise({
+    try: async () => {
+      const worker = await Tesseract.createWorker('eng', 1, {
+        workerPath: '/tesseract/worker.min.js',
+        corePath: '/tesseract/core',
+        langPath: '/tesseract/lang',
+        logger: () => {},
+      })
+      await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK })
+      return worker
+    },
+    catch: () => new Error('ocr unavailable'),
+  }),
+)
+
+const canvasFromFile = async (
+  file: File.File,
+  maxEdge: number,
+): Promise<HTMLCanvasElement | null> => {
+  const bitmap = await createImageBitmap(file)
+  const longest = Math.max(bitmap.width, bitmap.height)
+  const scale = longest > maxEdge ? maxEdge / longest : 1
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+  const context = canvas.getContext('2d')
+  if (context === null) {
+    bitmap.close()
+    return null
+  }
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  return canvas
+}
+
+export const SelectLabelPhoto = Command.define('SelectLabelPhoto', {
+  messages: [Message.SelectedLabelPhoto],
+  execute: File.select(['image/*']).pipe(
+    Effect.map(maybeFile => Message.SelectedLabelPhoto({ maybeFile })),
+  ),
+})
+
+export const MakeLabelThumbnail = Command.define('MakeLabelThumbnail', {
+  args: { file: File.File },
+  messages: [Message.CompletedLabelThumbnail, Message.FailedLabelThumbnail],
+  execute: ({ file }) =>
+    Effect.tryPromise({
+      try: async () => {
+        const bitmap = await createImageBitmap(file)
+        const size = 112
+        const scale = Math.max(size / bitmap.width, size / bitmap.height)
+        const width = Math.round(bitmap.width * scale)
+        const height = Math.round(bitmap.height * scale)
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const context = canvas.getContext('2d')
+        if (context === null) {
+          bitmap.close()
+          return Message.FailedLabelThumbnail()
+        }
+        context.drawImage(
+          bitmap,
+          (size - width) / 2,
+          (size - height) / 2,
+          width,
+          height,
+        )
+        bitmap.close()
+        return Message.CompletedLabelThumbnail({
+          thumbnail: canvas.toDataURL('image/webp', 0.72),
+        })
+      },
+      catch: () => new Error('thumbnail'),
+    }).pipe(Effect.catch(() => Effect.succeed(Message.FailedLabelThumbnail()))),
+})
+
+export const ReadLabelText = Command.define('ReadLabelText', {
+  args: { file: File.File },
+  messages: [Message.CompletedLabelText, Message.FailedLabelText],
+  execute: ({ file }) =>
+    Effect.gen(function* () {
+      const worker = yield* yield* OCR_WORKER_EFFECT
+      const text = yield* Effect.tryPromise({
+        try: async () => {
+          const canvas = await canvasFromFile(file, 1600)
+          if (canvas === null) {
+            throw new Error('no canvas')
+          }
+          const result = await worker.recognize(canvas)
+          return result.data.text
+        },
+        catch: () => new Error('ocr'),
+      })
+      return Message.CompletedLabelText({ text })
+    }).pipe(Effect.catch(() => Effect.succeed(Message.FailedLabelText()))),
 })

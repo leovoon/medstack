@@ -93,6 +93,51 @@ const backRow = (
   ),
 ]
 
+const photoBlock = (
+  model: Model,
+  draft: ProductDraft,
+  h: HtmlBuilder<Message>,
+): ReadonlyArray<Html> => [
+  draft.thumbnail === ''
+    ? h.button(
+        [
+          h.Class(secondaryButtonClassName + ' w-full mb-4'),
+          h.OnClick(Message.ClickedPickLabelPhoto()),
+        ],
+        ['Take a photo of the label'],
+      )
+    : h.div(
+        [h.Class('flex items-center gap-3 mb-4')],
+        [
+          h.img([
+            h.Class(
+              'h-16 w-16 rounded-xl object-cover shrink-0 border border-[var(--ms-border)]',
+            ),
+            h.Src(draft.thumbnail),
+            h.Alt('Label photo'),
+          ]),
+          h.button(
+            [
+              h.Class(secondaryButtonClassName + ' flex-1'),
+              h.OnClick(Message.ClickedPickLabelPhoto()),
+            ],
+            ['Retake photo'],
+          ),
+        ],
+      ),
+  ...(model.labelStatus === 'reading'
+    ? [h.p([h.Class(helperTextClassName + ' mb-4')], ['Reading the label...'])]
+    : []),
+  ...(model.labelStatus === 'failed'
+    ? [
+        h.p(
+          [h.Class(helperTextClassName + ' mb-4')],
+          ['Could not read it. Type the name below.'],
+        ),
+      ]
+    : []),
+]
+
 const textField = (
   id: string,
   label: string,
@@ -328,7 +373,11 @@ export const productEditorView = (
         step === 0
           ? [
               question('What is it?', h),
-              hint('Use the name printed on the tube, bottle, or box.', h),
+              hint(
+                'Take a photo of the label and the name fills itself in, or type it.',
+                h,
+              ),
+              ...photoBlock(model, draft, h),
               textField(
                 'product-name',
                 'Name',

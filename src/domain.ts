@@ -39,6 +39,7 @@ export const Product = Schema.Struct({
   defaultWaitMinutes: Schema.Number,
   asNeeded: Schema.Boolean,
   origin: Origin,
+  thumbnail: Schema.String,
 })
 export type Product = typeof Product.Type
 
@@ -71,6 +72,7 @@ export const StoredProduct = Schema.Struct({
   defaultWaitMinutes: Schema.Number,
   asNeeded: Schema.Boolean,
   origin: Schema.optionalKey(Origin),
+  thumbnail: Schema.optionalKey(Schema.String),
 })
 export type StoredProduct = typeof StoredProduct.Type
 
@@ -155,6 +157,7 @@ export const ProductDraft = Schema.Struct({
   note: Schema.String,
   defaultWaitMinutes: Schema.Number,
   asNeeded: Schema.Boolean,
+  thumbnail: Schema.String,
 })
 export type ProductDraft = typeof ProductDraft.Type
 
@@ -197,6 +200,7 @@ export const StoredSavedStateJsonString = Schema.fromJsonString(
 export const hydrateProduct = (stored: StoredProduct): Product => ({
   ...stored,
   origin: stored.origin ?? Origin.Manual(),
+  thumbnail: stored.thumbnail ?? '',
 })
 
 export const hydrateRoutine = (stored: StoredRoutine): Routine => ({
@@ -598,6 +602,7 @@ export const productDraftFromProduct = (product: Product): ProductDraft => ({
   note: product.note,
   defaultWaitMinutes: product.defaultWaitMinutes,
   asNeeded: product.asNeeded,
+  thumbnail: product.thumbnail,
 })
 
 export const emptyProductDraft = (
@@ -613,6 +618,7 @@ export const emptyProductDraft = (
   note: '',
   defaultWaitMinutes,
   asNeeded: false,
+  thumbnail: '',
 })
 
 export const productFromDraft = (
@@ -630,6 +636,7 @@ export const productFromDraft = (
   defaultWaitMinutes: draft.defaultWaitMinutes,
   asNeeded: draft.asNeeded,
   origin,
+  thumbnail: draft.thumbnail,
 })
 
 export const productDraftErrors = (
@@ -909,6 +916,7 @@ export const planImportFromPlan = (
       defaultWaitMinutes: asNeeded ? 0 : waitMinutes,
       asNeeded,
       origin,
+      thumbnail: '',
     }
   })
 
@@ -1026,4 +1034,30 @@ export const mergePlanImport = (
       Array.filter(newRoutines, routine => routine.steps.length > 0),
     ),
   }
+}
+
+// LABEL TEXT
+
+const LABEL_NOISE =
+  /^(ndc|lot|exp|mfd|ref|rx only|net wt|distributed|manufactured|store|keep out)\b/i
+
+export const labelNameFromText = (text: string): string => {
+  const lines = text
+    .split(/\r?\n/)
+    .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter(line => line.length >= 3)
+  const lettered = Array.filter(
+    lines,
+    line => !LABEL_NOISE.test(line) && line.replace(/[^a-z]/gi, '').length >= 3,
+  )
+  const strong = Array.findFirst(lettered, line => line.length >= 8)
+  const chosen = Option.orElse(strong, () => Array.head(lettered))
+  return Option.match(chosen, {
+    onNone: () => '',
+    onSome: line =>
+      line
+        .replace(/^[^a-z0-9]+/i, '')
+        .slice(0, 80)
+        .trim(),
+  })
 }

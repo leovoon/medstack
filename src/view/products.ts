@@ -98,8 +98,19 @@ export const productsView = (model: Model, h: HtmlBuilder<Message>): Html =>
                                 ],
                                 [
                                   h.div(
-                                    [h.Class('flex items-baseline gap-2 mb-1')],
+                                    [h.Class('flex items-center gap-2 mb-1')],
                                     [
+                                      ...(product.thumbnail !== ''
+                                        ? [
+                                            h.img([
+                                              h.Class(
+                                                'h-10 w-10 rounded-lg object-cover shrink-0 border border-[var(--ms-border)]',
+                                              ),
+                                              h.Src(product.thumbnail),
+                                              h.Alt('Label photo'),
+                                            ]),
+                                          ]
+                                        : []),
                                       h.span(
                                         [
                                           h.Class(

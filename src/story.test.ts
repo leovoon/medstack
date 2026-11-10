@@ -26,6 +26,7 @@ import {
   StoredSavedStateJsonString,
   baseModel,
   hydrateSavedState,
+  labelNameFromText,
   mergePlanImport,
   planFromText,
   planImportFromPlan,
@@ -100,6 +101,7 @@ const product = (id: string, over: Record<string, unknown> = {}) => ({
   defaultWaitMinutes: 20,
   asNeeded: false,
   origin: Origin.Manual(),
+  thumbnail: '',
   ...over,
 })
 
@@ -136,6 +138,7 @@ const productDraft = (over: Record<string, unknown> = {}) => ({
   note: '',
   defaultWaitMinutes: 20,
   asNeeded: false,
+  thumbnail: '',
   ...over,
 })
 
@@ -1115,6 +1118,86 @@ describe('update', () => {
           expect(draftStep(next)).toBe(0)
         }),
       )
+    })
+  })
+
+  describe('label photo', () => {
+    const draftModel = (draft: Record<string, unknown>) =>
+      modelWith({
+        page: Page.ProductEditor({ productId: Option.none() }),
+        maybeProductDraft: Option.some(productDraft(draft)),
+      })
+
+    test('the read text fills an empty name', () => {
+      story(
+        update,
+        given(draftModel({})),
+        message(
+          Message.CompletedLabelText({
+            text: 'CLOBETASOL PROPIONATE\nCream 0.05%\nApply twice daily',
+          }),
+        ),
+        model(next => {
+          expect(Option.getOrThrow(next.maybeProductDraft).name).toBe(
+            'CLOBETASOL PROPIONATE',
+          )
+          expect(next.labelStatus).toBe('idle')
+        }),
+      )
+    })
+
+    test('the read text never overwrites a typed name', () => {
+      story(
+        update,
+        given(draftModel({ name: 'My cream' })),
+        message(Message.CompletedLabelText({ text: 'CLOBETASOL PROPIONATE' })),
+        model(next => {
+          expect(Option.getOrThrow(next.maybeProductDraft).name).toBe(
+            'My cream',
+          )
+        }),
+      )
+    })
+
+    test('the thumbnail lands on the draft', () => {
+      story(
+        update,
+        given(draftModel({})),
+        message(
+          Message.CompletedLabelThumbnail({
+            thumbnail: 'data:image/webp;base64,AA',
+          }),
+        ),
+        model(next => {
+          expect(Option.getOrThrow(next.maybeProductDraft).thumbnail).toBe(
+            'data:image/webp;base64,AA',
+          )
+        }),
+      )
+    })
+
+    test('a failed read says so and keeps the form', () => {
+      story(
+        update,
+        given(draftModel({ name: 'Clobetasol' })),
+        message(Message.FailedLabelText()),
+        model(next => {
+          expect(next.labelStatus).toBe('failed')
+          expect(next.maybeToast).toStrictEqual(
+            Option.some('Could not read the label. Type the name.'),
+          )
+          expect(Option.getOrThrow(next.maybeProductDraft).name).toBe(
+            'Clobetasol',
+          )
+        }),
+      )
+    })
+
+    test('label text is reduced to a usable name', () => {
+      expect(labelNameFromText('5%\n\nNDC 12345\nTacrolimus ointment')).toBe(
+        'Tacrolimus ointment',
+      )
+      expect(labelNameFromText('0.05%\n20 g')).toBe('')
     })
   })
 

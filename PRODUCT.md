@@ -21,7 +21,9 @@ loads a medical preset, and never phones home.
 - No charts or analytics. No streaks/gamification.
 - No multi-user, no sharing, no QR export.
 - No dark/light theme switch — one carefully tuned theme (see §7).
-- No new npm dependencies. Build it with what is already installed.
+- No new npm dependencies, **except** the on-device OCR module `tesseract.js` (added for label
+  reading, see §3.10) and its local language data. Everything it needs is served from this
+  app's own `public/tesseract/`; it never contacts a third party.
 
 ---
 
@@ -145,6 +147,8 @@ Single `localStorage` key `medstack:v1`, value = JSON string of:
   Use one command, `SaveState`, that encodes and writes the whole snapshot. Do not write on
   1s ticks or on unrelated UI messages.
 - `doses` is capped at the most recent **1000** entries, oldest dropped on append.
+- Additive fields decode with a default (`thumbnail` on a stored product defaults to `''`), so an
+  older export or save keeps loading; nothing is rewritten until the next save.
 - Boot: read → `Schema.decode` → on any failure (missing, corrupt, wrong version) start from
   `init` with `[]` everywhere and keep booting. Never show a crash view for bad storage.
   Never wipe the bad value automatically; the first successful save replaces it.
@@ -238,7 +242,7 @@ new or edited; nothing is a single wall of fields.
 
 | Step | Question | Control | Advances by |
 | --- | --- | --- | --- |
-| 1 | What is it? | name (required) + strength (optional) | `Next`, disabled while the name is blank |
+| 1 | What is it? | `Take a photo of the label` + name (required) + strength (optional) | `Next`, disabled while the name is blank |
 | 2 | What kind is it? | 2-column kind chips | tapping a chip |
 | 3 | How much goes on? | amount chips + free text | tapping a chip, or `Next` |
 | 4 | Where does it go? | free text, optional | `Next` (skipping is allowed) |
@@ -246,6 +250,9 @@ new or edited; nothing is a single wall of fields.
 | 6 | Is it part of a routine? | two big buttons | tapping either |
 | 7 | Check it over | fact list + note + errors | `Add product` / `Save changes` |
 
+- The photo on step 1 is optional and never blocks: the name stays editable, typed text is never
+  overwritten by a late OCR result, and a failed read only says *"Could not read it. Type the name
+  below."*
 - Header shows `Step 3 of 7` and a thin progress line. Every step has `Back`, except step 1
   which has `Cancel` (nothing is saved).
 - Validation appears on step 7, next to the save button: `Name is required`,
@@ -300,6 +307,29 @@ Disclosure per day, most recent day open by default. Empty state: "Nothing logge
 - A muted footnote, the only medical-adjacent text in the app:
   *"Not medical advice. Follow your doctor's or pharmacist's instructions."*
 - Version line: `medstack 1.0`.
+
+### 3.10 Label photo and text reading (on-device OCR)
+
+Typing `Clobetasol propionate 0.05%` one-handed is the worst part of adding a product, so step 1
+of the wizard offers a camera.
+
+- `Take a photo of the label` opens the phone camera (`<input type="file" accept="image/*"
+  capture="environment">`, no `getUserMedia`, no permission prompt beyond the OS one).
+- Two things happen at once: a 112×112 WebP thumbnail is cut from the photo, and the same photo is
+  downscaled to 1600 px and read by Tesseract.js running as WASM **on the device**.
+- The first line that looks like a drug name (letters, not an `NDC`/`Lot`/`Exp` line, ≥ 3 letters)
+  is trimmed to 80 characters and put in the name field. A typed name is never overwritten. The
+  field stays editable — OCR is a head start, not an authority.
+- The thumbnail is stored on the product (`thumbnail`, a data URL, ~6–10 kB) and shown in the
+  Products list and in the wizard review step. It is only a memory aid; it is not read again.
+- Assets are self-hosted under `public/tesseract/` (`worker.min.js`, three LSTM cores, `eng` fast
+  traineddata) — ~13 MB on disk, and a browser fetches only the one core it can run, only when a
+  photo is first read. Nothing is requested from a CDN, ever.
+- No text is sent anywhere; the OCR never leaves the device, and the app still works with the
+  network unplugged once the assets are cached.
+- Measured in Chrome 157 (desktop, warm dev server, 900×480 synthetic label): worker + model
+  208–303 ms, first read 126–149 ms, second read 100 ms. A phone pays the core + model download
+  once (~6 MB) on the first photo.
 
 ---
 
@@ -402,8 +432,8 @@ nothing should make him think.
 ## 8. Technical constraints
 
 - Stack as scaffolded: Vite 8, Foldkit 0.170.0, Effect 4.1.0, `@foldkit/ui` 0.170.0, Tailwind 4,
-  Vitest, oxlint/oxfmt. **Do not add, remove, or bump dependencies.** No router, no date
-  library, no state library — everything the app needs is already installed.
+  Vitest, oxlint/oxfmt, plus `tesseract.js` for on-device OCR (§3.10). **Do not add, remove, or
+  bump any other dependency.** No router, no date library, no state library.
 - Client-rendered SPA. `src/entry.ts` only calls `Runtime.makeApplication` + `Runtime.run`
   (+`subscriptions`). Pure definitions stay out of it so tests can import them.
 - Keep `src/main.ts` as the public barrel: it must export `Model`, `Message`, `Flags`, `init`,
@@ -454,8 +484,9 @@ npm run format -- --check package.json 2>/dev/null || npx oxfmt --check src || t
 ```
 
 If `oxlint` flags something the conventions require, fix the code, not the config.
-`FOLDKIT.md`, `package.json` `dependencies`, and `vite.config.ts` input list are **frozen**;
-only `package.json`'s `scripts` may be touched if a script is factually broken.
+`FOLDKIT.md`, `package.json` `dependencies` (other than `tesseract.js`), and `vite.config.ts`
+input list are **frozen**; only `package.json`'s `scripts` may be touched if a script is
+factually broken.
 
 ---
 

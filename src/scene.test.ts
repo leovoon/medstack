@@ -20,6 +20,7 @@ const product = (id: string, over: Record<string, unknown> = {}) => ({
   defaultWaitMinutes: 20,
   asNeeded: false,
   origin: Origin.Manual(),
+  thumbnail: '',
   ...over,
 })
 
@@ -232,6 +233,7 @@ describe('view', () => {
         note: '',
         defaultWaitMinutes: 20,
         asNeeded: false,
+        thumbnail: '',
       }),
     })
     scene(
@@ -363,6 +365,7 @@ describe('view', () => {
         note: '',
         defaultWaitMinutes: 20,
         asNeeded: false,
+        thumbnail: '',
       }),
     })
     scene(
@@ -370,6 +373,7 @@ describe('view', () => {
       given(model),
       expect(text('What is it?')).toExist(),
       expect(text('Step 1 of 7')).toExist(),
+      expect(text('Take a photo of the label')).toExist(),
       expect(text('What kind is it?')).toBeAbsent(),
       expect(text('How much goes on?')).toBeAbsent(),
     )

@@ -13,14 +13,17 @@ import {
   GenerateRoutineId,
   ImportPlan,
   LogAsNeeded,
+  MakeLabelThumbnail,
   MarkRoutineReviewed,
   PlayWaitEndSound,
   ReadClock,
   ReadDayKey,
   ReadImportFile,
+  ReadLabelText,
   RequestWakeLock,
   SaveState,
   SelectImportFile,
+  SelectLabelPhoto,
   SkipStep,
   StartRun,
 } from './command'
@@ -37,6 +40,7 @@ import {
   buildRun,
   emptyProductDraft,
   emptyRoutineDraft,
+  labelNameFromText,
   mergePlanImport,
   moveStep,
   planPrompt,
@@ -184,6 +188,7 @@ const baseWithSaved = (saved: SavedState): Model => {
     planLabel: '',
     planPaste: '',
     maybePlanImport: Option.none(),
+    labelStatus: 'idle' as const,
   }
   return Page.match(base.page, {
     Today: () => base,
@@ -311,6 +316,39 @@ export const update = (model: Model, message: Message) =>
         ...draft,
         wizardStep: Math.min(PRODUCT_WIZARD_LAST_STEP, draft.wizardStep + 1),
       })),
+    ClickedPickLabelPhoto: () => ({ model, commands: [SelectLabelPhoto()] }),
+    SelectedLabelPhoto: ({ maybeFile }) =>
+      Option.match(maybeFile, {
+        onNone: () => ({ model }),
+        onSome: file => ({
+          model: { ...model, labelStatus: 'reading' as const },
+          commands: [MakeLabelThumbnail({ file }), ReadLabelText({ file })],
+        }),
+      }),
+    CompletedLabelThumbnail: ({ thumbnail }) =>
+      updateProductDraft(model, draft => ({ ...draft, thumbnail })),
+    FailedLabelThumbnail: () => ({
+      model: { ...model, labelStatus: 'failed' as const },
+    }),
+    CompletedLabelText: ({ text }) => ({
+      model: {
+        ...updateProductDraft(model, draft => {
+          const name = labelNameFromText(text)
+          return {
+            ...draft,
+            name: draft.name.trim() === '' ? name : draft.name,
+          }
+        }).model,
+        labelStatus: 'idle' as const,
+      },
+    }),
+    FailedLabelText: () => ({
+      model: {
+        ...model,
+        labelStatus: 'failed' as const,
+        maybeToast: Option.some('Could not read the label. Type the name.'),
+      },
+    }),
     ClickedProductBack: () =>
       updateProductDraft(model, draft => ({
         ...draft,

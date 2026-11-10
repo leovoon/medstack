@@ -40,6 +40,7 @@ export const Model = Schema.Struct({
   planLabel: Schema.String,
   planPaste: Schema.String,
   maybePlanImport: Schema.Option(PlanImportPreview),
+  labelStatus: Schema.Literals(['idle', 'reading', 'failed']),
 })
 export type Model = typeof Model.Type
 
@@ -76,4 +77,5 @@ export const baseModel = (): Model => ({
   planLabel: '',
   planPaste: '',
   maybePlanImport: Option.none(),
+  labelStatus: 'idle',
 })

@@ -16,7 +16,8 @@
     "@foldkit/ui": "0.170.0",
     "clsx": "^2.1.1",
     "effect": "4.1.0",
-    "foldkit": "0.170.0"
+    "foldkit": "0.170.0",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@effect/tsgo": "0.50.0",
