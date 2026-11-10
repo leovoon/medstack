@@ -36,17 +36,26 @@ const modelWith = (patch: Partial<Model> = {}): Model => ({
 
 const draftSteps = (
   m: Model,
-): ReadonlyArray<{ readonly productId: string; readonly waitMinutes: number }> =>
+): ReadonlyArray<{
+  readonly productId: string
+  readonly waitMinutes: number
+}> =>
   Option.match(m.maybeRoutineDraft, {
     onNone: () => [],
     onSome: draft => draft.steps,
   })
 
 const runStepIndex = (m: Model): number =>
-  Option.getOrElse(Option.map(m.activeRun, run => run.stepIndex), () => -1)
+  Option.getOrElse(
+    Option.map(m.activeRun, run => run.stepIndex),
+    () => -1,
+  )
 
 const runDayKey = (m: Model): string =>
-  Option.getOrElse(Option.map(m.activeRun, run => run.dayKey), () => '')
+  Option.getOrElse(
+    Option.map(m.activeRun, run => run.dayKey),
+    () => '',
+  )
 
 const runWaitEnds = (m: Model): Option.Option<number> =>
   Option.getOrElse(
@@ -56,7 +65,10 @@ const runWaitEnds = (m: Model): Option.Option<number> =>
 
 const importFirstProductId = (m: Model): string =>
   Option.getOrElse(
-    Option.map(m.maybeImportSnapshot, snapshot => snapshot.products[0]?.id ?? ''),
+    Option.map(
+      m.maybeImportSnapshot,
+      snapshot => snapshot.products[0]?.id ?? '',
+    ),
     () => '',
   )
 
@@ -777,14 +789,15 @@ describe('update', () => {
         given(inputModel),
         message(Message.Ticked()),
         Command.expectExact(ReadClock),
-        Command.resolve(ReadClock, Message.CompletedReadClock({ nowMs: 60000 })),
+        Command.resolve(
+          ReadClock,
+          Message.CompletedReadClock({ nowMs: 60000 }),
+        ),
         Command.expectNone(),
         model(next => {
           expect(next.nowMs).toBe(60000)
           expect(runStepIndex(next)).toBe(0)
-          expect(runWaitEnds(next)).toStrictEqual(
-            Option.some(100000),
-          )
+          expect(runWaitEnds(next)).toStrictEqual(Option.some(100000))
         }),
       )
     })
@@ -808,12 +821,12 @@ describe('update', () => {
         update,
         given(inputModel),
         message(Message.Ticked()),
-        Command.resolve(ReadClock, Message.CompletedReadClock({ nowMs: 100000 })),
-        Command.expectHas(PlayWaitEndSound),
         Command.resolve(
-          PlayWaitEndSound,
-          Message.CompletedPlayWaitEndSound(),
+          ReadClock,
+          Message.CompletedReadClock({ nowMs: 100000 }),
         ),
+        Command.expectHas(PlayWaitEndSound),
+        Command.resolve(PlayWaitEndSound, Message.CompletedPlayWaitEndSound()),
         model(next => {
           expect(runStepIndex(next)).toBe(0)
         }),
@@ -839,7 +852,10 @@ describe('update', () => {
         update,
         given(inputModel),
         message(Message.Ticked()),
-        Command.resolve(ReadClock, Message.CompletedReadClock({ nowMs: 100000 })),
+        Command.resolve(
+          ReadClock,
+          Message.CompletedReadClock({ nowMs: 100000 }),
+        ),
         Command.expectNone(),
       )
     })
@@ -981,7 +997,7 @@ describe('update', () => {
   })
 
   describe('day rollover', () => {
-    test('drops a stale run when the day changes', () => {
+    test('drops a stale run when the day changes and returns to Today', () => {
       const inputModel = modelWith({
         routines: [routine('r1')],
         activeRun: Option.some({
@@ -991,6 +1007,7 @@ describe('update', () => {
           startedAtMs: 0,
           waitEndsAtMs: Option.none(),
         }),
+        page: Page.Run(),
         todayKey: '2024-01-01',
       })
       story(
@@ -1007,6 +1024,7 @@ describe('update', () => {
         model(next => {
           expect(next.todayKey).toBe('2024-01-02')
           expect(next.activeRun).toStrictEqual(Option.none())
+          expect(next.page._tag).toBe('Today')
         }),
       )
     })
@@ -1156,8 +1174,10 @@ describe('persistence round-trips', () => {
       Schema.encodeEffect(SavedStateJsonString)(hydrated),
     )
     const parsed = JSON.parse(encoded)
-    const parsedProducts: ReadonlyArray<Record<string, unknown>> = parsed.products
-    const parsedRoutines: ReadonlyArray<Record<string, unknown>> = parsed.routines
+    const parsedProducts: ReadonlyArray<Record<string, unknown>> =
+      parsed.products
+    const parsedRoutines: ReadonlyArray<Record<string, unknown>> =
+      parsed.routines
     expect(parsedProducts[0]).toHaveProperty('origin')
     expect(parsedRoutines[0]).toHaveProperty('detail')
     expect(parsedRoutines[0]).toHaveProperty('reviewedAtMs')

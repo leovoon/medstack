@@ -4,8 +4,8 @@ import type { Html, HtmlBuilder } from 'foldkit/html'
 import { Dialog } from '@foldkit/ui'
 
 import { ConfirmKind, type Routine, progressDots, routineById } from '../domain'
-import type { Model } from '../model'
 import { Message } from '../message'
+import type { Model } from '../model'
 
 export const cardClassName =
   'rounded-xl bg-[var(--ms-surface)] border border-[var(--ms-border)] p-4'
@@ -67,10 +67,7 @@ const dialogPanel = (
     ],
     render.isVisible
       ? [
-          h.div([
-            ...render.backdrop,
-            h.Class('fixed inset-0 bg-black/60'),
-          ]),
+          h.div([...render.backdrop, h.Class('fixed inset-0 bg-black/60')]),
           h.div(
             [
               ...render.panel,
@@ -98,33 +95,41 @@ const confirmContent = (
   h: HtmlBuilder<Message>,
 ): ReadonlyArray<Html> => [
   h.h2(
-    [...render.title, h.Class('text-lg font-semibold text-[var(--ms-text)] mb-2')],
+    [
+      ...render.title,
+      h.Class('text-lg font-semibold text-[var(--ms-text)] mb-2'),
+    ],
     [options.title],
   ),
   h.p(
     [...render.description, h.Class('text-sm text-[var(--ms-text-2)] mb-5')],
     [options.description],
   ),
-  h.div([h.Class('flex gap-3 justify-end')], [
-    h.button(
-      [
-        ...render.closeButton,
-        h.Class('h-12 px-4 rounded-lg border border-[var(--ms-border)] text-[var(--ms-text)] text-base cursor-pointer'),
-      ],
-      ['Cancel'],
-    ),
-    h.button(
-      [
-        h.Class(
-          options.danger
-            ? 'h-12 px-4 rounded-lg bg-[var(--ms-text)] text-[var(--ms-bg)] font-semibold text-base cursor-pointer'
-            : 'h-12 px-4 rounded-lg bg-[var(--ms-accent)] text-[#1a120a] font-semibold text-base cursor-pointer',
-        ),
-        h.OnClick(options.onConfirm),
-      ],
-      [options.confirmLabel],
-    ),
-  ]),
+  h.div(
+    [h.Class('flex gap-3 justify-end')],
+    [
+      h.button(
+        [
+          ...render.closeButton,
+          h.Class(
+            'h-12 px-4 rounded-lg border border-[var(--ms-border)] text-[var(--ms-text)] text-base cursor-pointer',
+          ),
+        ],
+        ['Cancel'],
+      ),
+      h.button(
+        [
+          h.Class(
+            options.danger
+              ? 'h-12 px-4 rounded-lg bg-[var(--ms-text)] text-[var(--ms-bg)] font-semibold text-base cursor-pointer'
+              : 'h-12 px-4 rounded-lg bg-[var(--ms-accent)] text-[#1a120a] font-semibold text-base cursor-pointer',
+          ),
+          h.OnClick(options.onConfirm),
+        ],
+        [options.confirmLabel],
+      ),
+    ],
+  ),
 ]
 
 const deleteEverythingContent = (
@@ -133,12 +138,17 @@ const deleteEverythingContent = (
   h: HtmlBuilder<Message>,
 ): ReadonlyArray<Html> => [
   h.h2(
-    [...render.title, h.Class('text-lg font-semibold text-[var(--ms-text)] mb-2')],
+    [
+      ...render.title,
+      h.Class('text-lg font-semibold text-[var(--ms-text)] mb-2'),
+    ],
     ['Delete everything?'],
   ),
   h.p(
     [...render.description, h.Class('text-sm text-[var(--ms-text-2)] mb-3')],
-    ['Products, routines, doses, and the active run will be deleted. Settings stay. Type delete to confirm.'],
+    [
+      'Products, routines, doses, and the active run will be deleted. Settings stay. Type delete to confirm.',
+    ],
   ),
   h.input([
     h.Class(inputClassName),
@@ -147,26 +157,33 @@ const deleteEverythingContent = (
     h.AriaLabel('type delete'),
     h.OnInput(value => Message.UpdatedDeleteEverythingText({ value })),
   ]),
-  h.div([h.Class('flex gap-3 justify-end mt-5')], [
-    h.button(
-      [
-        ...render.closeButton,
-        h.Class('h-12 px-4 rounded-lg border border-[var(--ms-border)] text-[var(--ms-text)] text-base cursor-pointer'),
-      ],
-      ['Cancel'],
-    ),
-    h.button(
-      [
-        h.Class(
-          'h-12 px-4 rounded-lg text-[var(--ms-bg)] font-semibold text-base cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ' +
-            (model.deleteEverythingText === 'delete' ? 'bg-[var(--ms-text)]' : 'bg-[var(--ms-text-2)]'),
-        ),
-        h.OnClick(Message.ConfirmedDeleteEverything()),
-        h.Disabled(model.deleteEverythingText !== 'delete'),
-      ],
-      ['Delete'],
-    ),
-  ]),
+  h.div(
+    [h.Class('flex gap-3 justify-end mt-5')],
+    [
+      h.button(
+        [
+          ...render.closeButton,
+          h.Class(
+            'h-12 px-4 rounded-lg border border-[var(--ms-border)] text-[var(--ms-text)] text-base cursor-pointer',
+          ),
+        ],
+        ['Cancel'],
+      ),
+      h.button(
+        [
+          h.Class(
+            'h-12 px-4 rounded-lg text-[var(--ms-bg)] font-semibold text-base cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ' +
+              (model.deleteEverythingText === 'delete'
+                ? 'bg-[var(--ms-text)]'
+                : 'bg-[var(--ms-text-2)]'),
+          ),
+          h.OnClick(Message.ConfirmedDeleteEverything()),
+          h.Disabled(model.deleteEverythingText !== 'delete'),
+        ],
+        ['Delete'],
+      ),
+    ],
+  ),
 ]
 
 const routineName = (model: Model, id: string): string =>
@@ -184,7 +201,10 @@ const productName = (model: Model, id: string): string =>
     () => 'This product',
   )
 
-export const confirmDialogView = (model: Model, h: HtmlBuilder<Message>): Html =>
+export const confirmDialogView = (
+  model: Model,
+  h: HtmlBuilder<Message>,
+): Html =>
   h.submodel({
     slotId: model.confirmDialog.id,
     model: model.confirmDialog,
@@ -225,7 +245,8 @@ export const confirmDialogView = (model: Model, h: HtmlBuilder<Message>): Html =
                   render,
                   {
                     title: 'Import this file?',
-                    description: 'Products, routines, and doses will be replaced. Your settings stay as they are.',
+                    description:
+                      'Products, routines, and doses will be replaced. Your settings stay as they are.',
                     confirmLabel: 'Import',
                     onConfirm: Message.ConfirmedImport(),
                     danger: false,
@@ -237,7 +258,8 @@ export const confirmDialogView = (model: Model, h: HtmlBuilder<Message>): Html =
                   render,
                   {
                     title: 'Clear history?',
-                    description: 'All logged doses will be deleted. Products and routines stay.',
+                    description:
+                      'All logged doses will be deleted. Products and routines stay.',
                     confirmLabel: 'Clear',
                     onConfirm: Message.ConfirmedClearHistory(),
                     danger: true,
@@ -253,7 +275,10 @@ export const confirmDialogView = (model: Model, h: HtmlBuilder<Message>): Html =
     toParentMessage: message => Message.GotConfirmDialogMessage({ message }),
   })
 
-export const stepPickerDialogView = (model: Model, h: HtmlBuilder<Message>): Html =>
+export const stepPickerDialogView = (
+  model: Model,
+  h: HtmlBuilder<Message>,
+): Html =>
   h.submodel({
     slotId: model.stepPickerDialog.id,
     model: model.stepPickerDialog,
@@ -274,12 +299,17 @@ export const stepPickerDialogView = (model: Model, h: HtmlBuilder<Message>): Htm
           onEmpty: () => [
             h.p(
               [h.Class('text-sm text-[var(--ms-text-2)] mb-5')],
-              ['Every product is already in this routine. Add another product first.'],
+              [
+                'Every product is already in this routine. Add another product first.',
+              ],
             ),
           ],
           onNonEmpty: products => [
             h.h2(
-              [...render.title, h.Class('text-lg font-semibold text-[var(--ms-text)] mb-3')],
+              [
+                ...render.title,
+                h.Class('text-lg font-semibold text-[var(--ms-text)] mb-3'),
+              ],
               ['Add a step'],
             ),
             h.ul(
@@ -292,15 +322,32 @@ export const stepPickerDialogView = (model: Model, h: HtmlBuilder<Message>): Htm
                     h.div(
                       [h.Class('flex items-center gap-3 py-3 min-h-12')],
                       [
-                        h.div([h.Class('flex-1 min-w-0')], [
-                          h.p([h.Class('text-base text-[var(--ms-text)] truncate')], [product.name]),
-                          h.p([h.Class('text-sm text-[var(--ms-text-2)]')], [product.kind]),
-                        ]),
+                        h.div(
+                          [h.Class('flex-1 min-w-0')],
+                          [
+                            h.p(
+                              [
+                                h.Class(
+                                  'text-base text-[var(--ms-text)] truncate',
+                                ),
+                              ],
+                              [product.name],
+                            ),
+                            h.p(
+                              [h.Class('text-sm text-[var(--ms-text-2)]')],
+                              [product.kind],
+                            ),
+                          ],
+                        ),
                         h.button(
                           [
-                            h.Class('h-12 px-4 rounded-lg bg-[var(--ms-accent)] text-[#1a120a] font-semibold text-sm cursor-pointer'),
+                            h.Class(
+                              'h-12 px-4 rounded-lg bg-[var(--ms-accent)] text-[#1a120a] font-semibold text-sm cursor-pointer',
+                            ),
                             h.OnClick(
-                              Message.SelectedStepProduct({ productId: product.id }),
+                              Message.SelectedStepProduct({
+                                productId: product.id,
+                              }),
                             ),
                           ],
                           ['Add'],
@@ -336,7 +383,9 @@ const simpleToastView = (model: Model, h: HtmlBuilder<Message>): Html =>
               h.p([h.Class('text-sm')], [message]),
               h.button(
                 [
-                  h.Class('absolute top-2 right-2 h-9 w-9 rounded text-[var(--ms-text-2)] cursor-pointer'),
+                  h.Class(
+                    'absolute top-2 right-2 h-9 w-9 rounded text-[var(--ms-text-2)] cursor-pointer',
+                  ),
                   h.AriaLabel('Dismiss'),
                   h.OnClick(Message.ClickedDismissToast()),
                 ],
@@ -354,13 +403,33 @@ export const bottomBar = (model: Model, h: HtmlBuilder<Message>): Html => {
     readonly message: Message
     readonly isActive: boolean
   }> = [
-    { label: 'Today', message: Message.ClickedTabToday(), isActive: model.page._tag === 'Today' },
-    { label: 'Routines', message: Message.ClickedTabRoutines(), isActive: model.page._tag === 'Routines' },
-    { label: 'Products', message: Message.ClickedTabProducts(), isActive: model.page._tag === 'Products' },
-    { label: 'History', message: Message.ClickedTabHistory(), isActive: model.page._tag === 'History' },
+    {
+      label: 'Today',
+      message: Message.ClickedTabToday(),
+      isActive: model.page._tag === 'Today',
+    },
+    {
+      label: 'Routines',
+      message: Message.ClickedTabRoutines(),
+      isActive: model.page._tag === 'Routines',
+    },
+    {
+      label: 'Products',
+      message: Message.ClickedTabProducts(),
+      isActive: model.page._tag === 'Products',
+    },
+    {
+      label: 'History',
+      message: Message.ClickedTabHistory(),
+      isActive: model.page._tag === 'History',
+    },
   ]
   return h.nav(
-    [h.Class('fixed bottom-0 inset-x-0 border-t border-[var(--ms-border)] bg-[var(--ms-surface)]')],
+    [
+      h.Class(
+        'fixed bottom-0 inset-x-0 border-t border-[var(--ms-border)] bg-[var(--ms-surface)]',
+      ),
+    ],
     [
       h.div(
         [h.Class('max-w-[480px] mx-auto grid grid-cols-4 px-2')],
@@ -369,7 +438,9 @@ export const bottomBar = (model: Model, h: HtmlBuilder<Message>): Html => {
             [
               h.Class(
                 'flex flex-col items-center justify-center gap-1 h-14 text-sm cursor-pointer ' +
-                  (tab.isActive ? 'text-[var(--ms-accent)]' : 'text-[var(--ms-text-2)]'),
+                  (tab.isActive
+                    ? 'text-[var(--ms-accent)]'
+                    : 'text-[var(--ms-text-2)]'),
               ),
               h.OnClick(tab.message),
               ...(tab.isActive ? [h.AriaCurrent('page')] : []),
@@ -391,7 +462,11 @@ export const shell = (
     [h.Class('min-h-screen bg-[var(--ms-bg)] text-[var(--ms-text)]')],
     [
       h.div(
-        [h.Class('mx-auto max-w-[480px] px-5 pt-5 pb-28 min-h-screen flex flex-col')],
+        [
+          h.Class(
+            'mx-auto max-w-[480px] px-5 pt-5 pb-28 min-h-screen flex flex-col',
+          ),
+        ],
         [body],
       ),
       ...(model.page._tag === 'Run' ? [] : [bottomBar(model, h)]),

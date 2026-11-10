@@ -2,14 +2,7 @@ import { Option } from 'effect'
 import { expect, given, role, scene, text } from 'foldkit/scene'
 import { describe, test } from 'vitest'
 
-import {
-  type Model,
-  Origin,
-  Page,
-  baseModel,
-  update,
-  view,
-} from './main'
+import { type Model, Origin, Page, baseModel, update, view } from './main'
 
 const modelWith = (patch: Partial<Model>): Model => ({
   ...baseModel(),
@@ -90,16 +83,10 @@ describe('view', () => {
     const model = modelWith({
       products: [product('a')],
       routines: [routine('r1')],
-      doses: [
-        dose('d1', { productId: 'a', routineId: Option.some('r1') }),
-      ],
+      doses: [dose('d1', { productId: 'a', routineId: Option.some('r1') })],
       todayKey: '2024-01-01',
     })
-    scene(
-      { update, view },
-      given(model),
-      expect(text('Done ✓')).toExist(),
-    )
+    scene({ update, view }, given(model), expect(text('Done ✓')).toExist())
   })
 
   test('Run ready shows product name, amount, and the applied verb', () => {
@@ -302,7 +289,9 @@ describe('view', () => {
   })
 
   test('routine detail renders on the Run screen', () => {
-    const longDetail = 'Take on an empty stomach, 30 min before food. '.repeat(4).trim()
+    const longDetail = 'Take on an empty stomach, 30 min before food. '
+      .repeat(4)
+      .trim()
     const model = modelWith({
       products: [product('a')],
       routines: [
@@ -322,10 +311,40 @@ describe('view', () => {
       todayKey: '2024-01-01',
       nowMs: 1000,
     })
+    scene({ update, view }, given(model), expect(text(longDetail)).toExist())
+  })
+
+  test('Today hides a routine that has no steps', () => {
+    const model = modelWith({
+      products: [product('a')],
+      routines: [routine('r1', { steps: [] })],
+      todayKey: '2024-01-01',
+    })
     scene(
       { update, view },
       given(model),
-      expect(text(longDetail)).toExist(),
+      expect(text('R1')).toBeAbsent(),
+      expect(role('button', { name: 'Start' })).toBeAbsent(),
+    )
+  })
+
+  test('Today hides the in-progress banner once the run is finished', () => {
+    const model = modelWith({
+      products: [product('a')],
+      routines: [routine('r1')],
+      activeRun: Option.some({
+        routineId: 'r1',
+        dayKey: '2024-01-01',
+        stepIndex: 1,
+        startedAtMs: 0,
+        waitEndsAtMs: Option.none(),
+      }),
+      todayKey: '2024-01-01',
+    })
+    scene(
+      { update, view },
+      given(model),
+      expect(text(/In progress/)).toBeAbsent(),
     )
   })
 

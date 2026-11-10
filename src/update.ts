@@ -106,7 +106,9 @@ const openStepPicker = (model: Model): Model =>
     stepPickerDialog: () => Dialog.open(model.stepPickerDialog).model,
   })
 
-const foldConfirmDialogOutMessage = Dialog.OutMessage.match<Update.Step<Model, Message>>({
+const foldConfirmDialogOutMessage = Dialog.OutMessage.match<
+  Update.Step<Model, Message>
+>({
   Opened: () => model => ({ model }),
   Closed: () => model => ({ model: closeConfirm(model) }),
 })
@@ -122,7 +124,9 @@ const foldConfirmDialog = Update.foldChild({
   foldOutMessage: foldConfirmDialogOutMessage,
 })
 
-const foldStepPickerDialogOutMessage = Dialog.OutMessage.match<Update.Step<Model, Message>>({
+const foldStepPickerDialogOutMessage = Dialog.OutMessage.match<
+  Update.Step<Model, Message>
+>({
   Opened: () => model => ({ model }),
   Closed: () => model => ({ model }),
 })
@@ -133,7 +137,10 @@ const foldStepPickerDialog = Update.foldChild({
   write: (model: Model, next: Model['stepPickerDialog']) =>
     modifyFields(model, { stepPickerDialog: () => next }),
   toParentMessage: (
-    message: Extract<Message, { _tag: 'GotStepPickerDialogMessage' }>['message'],
+    message: Extract<
+      Message,
+      { _tag: 'GotStepPickerDialogMessage' }
+    >['message'],
   ): Message => Message.GotStepPickerDialogMessage({ message }),
   foldOutMessage: foldStepPickerDialogOutMessage,
 })
@@ -247,7 +254,8 @@ export const update = (model: Model, message: Message) =>
         onSome: product =>
           navigate(
             modifyFields(model, {
-              maybeProductDraft: () => Option.some(productDraftFromProduct(product)),
+              maybeProductDraft: () =>
+                Option.some(productDraftFromProduct(product)),
             }),
             Page.ProductEditor({ productId: Option.some(productId) }),
           ),
@@ -323,14 +331,21 @@ export const update = (model: Model, message: Message) =>
     ClickedDeleteProduct: ({ productId }) =>
       Option.match(productById(model.products, productId), {
         onNone: () => ({ model }),
-        onSome: () =>
-          ({ model: openConfirm(model, ConfirmKind.DeleteProduct({ productId })) }),
+        onSome: () => ({
+          model: openConfirm(model, ConfirmKind.DeleteProduct({ productId })),
+        }),
       }),
     ConfirmedDeleteProduct: ({ productId }) => {
-      const products = Array.filter(model.products, product => product.id !== productId)
+      const products = Array.filter(
+        model.products,
+        product => product.id !== productId,
+      )
       const routines = Array.map(model.routines, routine => ({
         ...routine,
-        steps: Array.filter(routine.steps, step => step.productId !== productId),
+        steps: Array.filter(
+          routine.steps,
+          step => step.productId !== productId,
+        ),
       }))
       let activeRun = model.activeRun
       if (Option.isSome(model.activeRun)) {
@@ -454,14 +469,21 @@ export const update = (model: Model, message: Message) =>
       updateRoutineDraft(model, draft => {
         const step = draft.steps[stepIndex]
         const product = step
-          ? pipe(productById(model.products, step.productId), Option.getOrElse(() => null))
+          ? pipe(
+              productById(model.products, step.productId),
+              Option.getOrElse(() => null),
+            )
           : null
         if (product === null) {
           return draft
         }
         return {
           ...draft,
-          steps: updateStepWait(draft.steps, stepIndex, product.defaultWaitMinutes),
+          steps: updateStepWait(
+            draft.steps,
+            stepIndex,
+            product.defaultWaitMinutes,
+          ),
         }
       }),
     SubmittedRoutine: () =>
@@ -522,11 +544,15 @@ export const update = (model: Model, message: Message) =>
     ClickedDeleteRoutine: ({ routineId }) =>
       Option.match(routineById(model.routines, routineId), {
         onNone: () => ({ model }),
-        onSome: () =>
-          ({ model: openConfirm(model, ConfirmKind.DeleteRoutine({ routineId })) }),
+        onSome: () => ({
+          model: openConfirm(model, ConfirmKind.DeleteRoutine({ routineId })),
+        }),
       }),
     ConfirmedDeleteRoutine: ({ routineId }) => {
-      const routines = Array.filter(model.routines, routine => routine.id !== routineId)
+      const routines = Array.filter(
+        model.routines,
+        routine => routine.id !== routineId,
+      )
       const activeRun =
         Option.isSome(model.activeRun) &&
         model.activeRun.value.routineId === routineId
@@ -550,7 +576,12 @@ export const update = (model: Model, message: Message) =>
       if (Option.isNone(maybeRoutine)) {
         return { model }
       }
-      const run = buildRun(maybeRoutine.value, model.doses, model.todayKey, nowMs)
+      const run = buildRun(
+        maybeRoutine.value,
+        model.doses,
+        model.todayKey,
+        nowMs,
+      )
       const next = modifyFields(model, {
         activeRun: () => Option.some(run),
         page: () => Page.Run(),
@@ -687,7 +718,10 @@ export const update = (model: Model, message: Message) =>
         ? remainingMs(model.activeRun.value.waitEndsAtMs.value, nowMs)
         : 0
       const commands =
-        waiting && model.settings.soundOnWaitEnd && prevRemaining > 0 && nextRemaining === 0
+        waiting &&
+        model.settings.soundOnWaitEnd &&
+        prevRemaining > 0 &&
+        nextRemaining === 0
           ? [PlayWaitEndSound()]
           : []
       return {
@@ -701,8 +735,14 @@ export const update = (model: Model, message: Message) =>
         return { model }
       }
       let next = modifyFields(model, { todayKey: () => dayKey })
-      if (Option.isSome(model.activeRun) && model.activeRun.value.dayKey !== dayKey) {
-        next = modifyFields(next, { activeRun: () => Option.none() })
+      if (
+        Option.isSome(model.activeRun) &&
+        model.activeRun.value.dayKey !== dayKey
+      ) {
+        next = modifyFields(next, {
+          activeRun: () => Option.none(),
+          page: () => Page.Today(),
+        })
         return save(next)
       }
       return { model: next }
@@ -781,7 +821,10 @@ export const update = (model: Model, message: Message) =>
       return { model: next }
     },
     FailedDecodeImport: () => ({
-      model: setToast(model, 'Not a medstack file — your data was not changed.'),
+      model: setToast(
+        model,
+        'Not a medstack file — your data was not changed.',
+      ),
     }),
     ConfirmedImport: () =>
       Option.match(model.maybeImportSnapshot, {
@@ -806,11 +849,14 @@ export const update = (model: Model, message: Message) =>
             : Option.some(dayKey),
       }),
     }),
-    ClickedClearHistory: () => ({ model: openConfirm(model, ConfirmKind.ClearHistory()) }),
+    ClickedClearHistory: () => ({
+      model: openConfirm(model, ConfirmKind.ClearHistory()),
+    }),
     ConfirmedClearHistory: () =>
       save(modifyFields(closeConfirm(model), { doses: () => [] })),
-    ClickedDeleteEverything: () =>
-      ({ model: openConfirm(model, ConfirmKind.DeleteEverything()) }),
+    ClickedDeleteEverything: () => ({
+      model: openConfirm(model, ConfirmKind.DeleteEverything()),
+    }),
     UpdatedDeleteEverythingText: ({ value }) => ({
       model: modifyFields(model, { deleteEverythingText: () => value }),
     }),
@@ -833,7 +879,8 @@ export const update = (model: Model, message: Message) =>
     FailedSaveState: () => ({ model }),
 
     GotConfirmDialogMessage: ({ message }) => foldConfirmDialog(model, message),
-    GotStepPickerDialogMessage: ({ message }) => foldStepPickerDialog(model, message),
+    GotStepPickerDialogMessage: ({ message }) =>
+      foldStepPickerDialog(model, message),
     ClickedDismissToast: () => ({
       model: modifyFields(model, { maybeToast: () => Option.none() }),
     }),

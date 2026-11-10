@@ -3,7 +3,11 @@ import { KeyValueStore } from 'effect/persistence'
 
 import { BrowserKeyValueStore } from '@effect/platform-browser'
 
-import { SavedState, StoredSavedStateJsonString, hydrateSavedState } from './domain'
+import {
+  SavedState,
+  StoredSavedStateJsonString,
+  hydrateSavedState,
+} from './domain'
 
 export const STORAGE_KEY = 'medstack:v1'
 

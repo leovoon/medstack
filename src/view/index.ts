@@ -1,8 +1,8 @@
 import type { Document, HtmlBuilder } from 'foldkit/html'
 
 import { Page } from '../domain'
-import type { Model } from '../model'
 import { Message } from '../message'
+import type { Model } from '../model'
 import { shell } from './components'
 import { historyView } from './history'
 import { productEditorView } from './productEditor'

@@ -6,7 +6,12 @@ import * as File from 'foldkit/file'
 
 import { BrowserCrypto, BrowserKeyValueStore } from '@effect/platform-browser'
 
-import { SavedState, StoredSavedStateJsonString, dayKeyFromDate, hydrateSavedState } from './domain'
+import {
+  SavedState,
+  StoredSavedStateJsonString,
+  dayKeyFromDate,
+  hydrateSavedState,
+} from './domain'
 import { Message } from './message'
 import { STORAGE_KEY, SavedStateJsonString } from './storage'
 
@@ -43,7 +48,9 @@ export const ReadDayKey = Command.define('ReadDayKey', {
   messages: [Message.CompletedReadDayKey],
   execute: Effect.gen(function* () {
     const now = yield* Clock.currentTimeMillis
-    return Message.CompletedReadDayKey({ dayKey: dayKeyFromDate(new Date(now)) })
+    return Message.CompletedReadDayKey({
+      dayKey: dayKeyFromDate(new Date(now)),
+    })
   }),
 })
 
@@ -143,7 +150,9 @@ export const DecodeImport = Command.define('DecodeImport', {
   messages: [Message.SucceededDecodeImport, Message.FailedDecodeImport],
   execute: ({ text }) =>
     Effect.gen(function* () {
-      const decoded = yield* Schema.decodeEffect(StoredSavedStateJsonString)(text)
+      const decoded = yield* Schema.decodeEffect(StoredSavedStateJsonString)(
+        text,
+      )
       const hydrated = hydrateSavedState(decoded)
       return Message.SucceededDecodeImport({
         products: hydrated.products,

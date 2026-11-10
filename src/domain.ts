@@ -272,7 +272,10 @@ const civilFromDays = (z: number): [number, number, number] => {
   const era = Math.floor(zz / 146097)
   const doe = zz - era * 146097
   const yoe = Math.floor(
-    (doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) /
+    (doe -
+      Math.floor(doe / 1460) +
+      Math.floor(doe / 36524) -
+      Math.floor(doe / 146096)) /
       365,
   )
   const y = yoe + era * 400
@@ -358,12 +361,14 @@ export const sanitizeMinutes = (value: number): number => {
 export const productById = (
   products: ReadonlyArray<Product>,
   id: string,
-): Option.Option<Product> => Array.findFirst(products, product => product.id === id)
+): Option.Option<Product> =>
+  Array.findFirst(products, product => product.id === id)
 
 export const routineById = (
   routines: ReadonlyArray<Routine>,
   id: string,
-): Option.Option<Routine> => Array.findFirst(routines, routine => routine.id === id)
+): Option.Option<Routine> =>
+  Array.findFirst(routines, routine => routine.id === id)
 
 export const routineNeedsStep = (routine: Routine): boolean =>
   routine.steps.length === 0
@@ -389,11 +394,8 @@ export const coveredStepCount = (
   doses: ReadonlyArray<Dose>,
   dayKey: string,
 ): number =>
-  Array.reduce(
-    routine.steps,
-    0,
-    (count, step) =>
-      isStepCovered(step, routine.id, doses, dayKey) ? count + 1 : count,
+  Array.reduce(routine.steps, 0, (count, step) =>
+    isStepCovered(step, routine.id, doses, dayKey) ? count + 1 : count,
   )
 
 export const isRoutineDoneToday = (
@@ -411,7 +413,9 @@ export const firstUncoveredStepIndex = (
 ): Option.Option<number> =>
   pipe(
     routine.steps,
-    Array.findFirstIndex(step => !isStepCovered(step, routine.id, doses, dayKey)),
+    Array.findFirstIndex(
+      step => !isStepCovered(step, routine.id, doses, dayKey),
+    ),
   )
 
 export const progressDots = (
@@ -431,8 +435,9 @@ export const buildRun = (
 ): Run => ({
   routineId: routine.id,
   dayKey,
-  stepIndex: Option.getOrElse(firstUncoveredStepIndex(routine, doses, dayKey), () =>
-    routine.steps.length,
+  stepIndex: Option.getOrElse(
+    firstUncoveredStepIndex(routine, doses, dayKey),
+    () => routine.steps.length,
   ),
   startedAtMs,
   waitEndsAtMs: Option.none(),
@@ -446,7 +451,10 @@ export const isRunFinished = (run: Run, routine: Routine): boolean =>
 export const dueRoutines = (
   routines: ReadonlyArray<Routine>,
 ): { readonly due: ReadonlyArray<Routine>; readonly pausedCount: number } => {
-  const visible = Array.filter(routines, routine => !routine.isPaused)
+  const visible = Array.filter(
+    routines,
+    routine => !routine.isPaused && !routineNeedsStep(routine),
+  )
   const due = Array.sortWith(
     visible,
     routine =>
@@ -456,14 +464,16 @@ export const dueRoutines = (
       }),
     Order.String,
   )
-  const pausedCount = Array.length(Array.filter(routines, routine => routine.isPaused))
+  const pausedCount = Array.length(
+    Array.filter(
+      routines,
+      routine => routine.isPaused && !routineNeedsStep(routine),
+    ),
+  )
   return { due, pausedCount }
 }
 
-export const isLaterThanUsual = (
-  routine: Routine,
-  nowMs: number,
-): boolean =>
+export const isLaterThanUsual = (routine: Routine, nowMs: number): boolean =>
   Option.match(routine.scheduledTime, {
     onNone: () => false,
     onSome: time => time < formatHourMinute(nowMs),
@@ -485,7 +495,12 @@ export const appendDose = (
 }
 
 export type DaySection =
-  | { readonly _tag: 'routine'; readonly routineId: string; readonly title: string; readonly doses: ReadonlyArray<Dose> }
+  | {
+      readonly _tag: 'routine'
+      readonly routineId: string
+      readonly title: string
+      readonly doses: ReadonlyArray<Dose>
+    }
   | { readonly _tag: 'asNeeded'; readonly doses: ReadonlyArray<Dose> }
 
 export type DayGroup = {
@@ -511,8 +526,7 @@ export const groupDosesByDay = (
       [],
       (acc, dose) =>
         Option.match(dose.routineId, {
-          onNone: () =>
-            appendToAsNeededSection(acc, dose),
+          onNone: () => appendToAsNeededSection(acc, dose),
           onSome: routineId =>
             appendToRoutineSection(acc, dose, routineId, routines),
         }),
@@ -525,8 +539,9 @@ const appendToAsNeededSection = (
   sections: ReadonlyArray<DaySection>,
   dose: Dose,
 ): ReadonlyArray<DaySection> => {
-  const maybeIndex = Array.findFirstIndex(sections, section =>
-    section._tag === 'asNeeded',
+  const maybeIndex = Array.findFirstIndex(
+    sections,
+    section => section._tag === 'asNeeded',
   )
   return Option.match(maybeIndex, {
     onNone: () => [...sections, { _tag: 'asNeeded', doses: [dose] }],
@@ -546,8 +561,9 @@ const appendToRoutineSection = (
   routineId: string,
   routines: ReadonlyArray<Routine>,
 ): ReadonlyArray<DaySection> => {
-  const existing = Array.findFirst(sections, section =>
-    section._tag === 'routine' && section.routineId === routineId,
+  const existing = Array.findFirst(
+    sections,
+    section => section._tag === 'routine' && section.routineId === routineId,
   )
   if (Option.isSome(existing)) {
     return Array.map(sections, section =>
@@ -580,7 +596,9 @@ export const productDraftFromProduct = (product: Product): ProductDraft => ({
   asNeeded: product.asNeeded,
 })
 
-export const emptyProductDraft = (defaultWaitMinutes: number): ProductDraft => ({
+export const emptyProductDraft = (
+  defaultWaitMinutes: number,
+): ProductDraft => ({
   maybeProductId: Option.none(),
   name: '',
   strength: '',
@@ -609,7 +627,9 @@ export const productFromDraft = (
   origin,
 })
 
-export const productDraftErrors = (draft: ProductDraft): ReadonlyArray<string> => {
+export const productDraftErrors = (
+  draft: ProductDraft,
+): ReadonlyArray<string> => {
   const errors: string[] = []
   if (StringTrimEmpty(draft.name)) {
     errors.push('Name is required')
