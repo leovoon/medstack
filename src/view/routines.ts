@@ -5,6 +5,7 @@ import { productById, routineById, routineNeedsStep } from '../domain'
 import { Message } from '../message'
 import type { Model } from '../model'
 import {
+  buttonContent,
   cardClassName,
   dotsView,
   helperTextClassName,
@@ -123,7 +124,7 @@ export const routinesView = (model: Model, h: HtmlBuilder<Message>): Html =>
               h.Class(primaryButtonClassName + ' !w-auto px-5 !h-12'),
               h.OnClick(Message.ClickedNewRoutine()),
             ],
-            ['New routine'],
+            buttonContent('New routine', 'plus', h),
           ),
         ],
       ),

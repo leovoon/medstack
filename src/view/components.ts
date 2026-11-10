@@ -6,6 +6,7 @@ import { Dialog } from '@foldkit/ui'
 import { ConfirmKind, type Routine, progressDots, routineById } from '../domain'
 import { Message } from '../message'
 import type { Model } from '../model'
+import { type IconName, icon } from './icons'
 
 export const cardClassName =
   'rounded-xl bg-[var(--ms-surface)] border border-[var(--ms-border)] p-4'
@@ -25,6 +26,46 @@ export const inputClassName =
   'w-full h-12 px-3 rounded-lg bg-[var(--ms-bg)] border border-[var(--ms-border)] text-[var(--ms-text)] text-base placeholder:text-[var(--ms-text-2)]/60 focus:outline-none focus:ring-2 focus:ring-[var(--ms-accent)] disabled:opacity-50'
 
 export const helperTextClassName = 'text-sm text-[var(--ms-text-2)]'
+
+export const optionChipClassName = (isActive: boolean): string =>
+  'flex items-center justify-center gap-2 h-14 rounded-xl border text-base font-medium cursor-pointer px-2 transition-colors ' +
+  (isActive
+    ? 'border-[var(--ms-accent)] bg-[var(--ms-surface)] text-[var(--ms-text)]'
+    : 'border-[var(--ms-border)] bg-transparent text-[var(--ms-text)]')
+
+/** An option the user picks by tapping: icon, then the word for it. */
+export const optionChip = (
+  label: string,
+  iconName: IconName,
+  isActive: boolean,
+  onPress: Message,
+  h: HtmlBuilder<Message>,
+  isCompact = false,
+): Html =>
+  h.button(
+    [
+      h.Class(
+        optionChipClassName(isActive) +
+          (isCompact ? ' gap-1.5 text-sm px-1' : ''),
+      ),
+      h.OnClick(onPress),
+    ],
+    [icon(iconName, h, isCompact ? 'h-4 w-4' : 'h-5 w-5'), h.span([], [label])],
+  )
+
+/** Button children: an optional icon, then the label. */
+export const buttonContent = (
+  label: string,
+  iconName: IconName | null,
+  h: HtmlBuilder<Message>,
+): ReadonlyArray<Html> =>
+  iconName === null
+    ? [h.span([], [label])]
+    : [icon(iconName, h), h.span([], [label])]
+
+export const actionButtonClassName = primaryButtonClassName + ' gap-2'
+
+export const quietActionButtonClassName = secondaryButtonClassName + ' gap-2'
 
 export const dotsView = (
   routine: Routine,
@@ -115,7 +156,7 @@ const confirmContent = (
             'h-12 px-4 rounded-lg border border-[var(--ms-border)] text-[var(--ms-text)] text-base cursor-pointer',
           ),
         ],
-        ['Cancel'],
+        buttonContent('Cancel', 'close', h),
       ),
       h.button(
         [
@@ -167,7 +208,7 @@ const deleteEverythingContent = (
             'h-12 px-4 rounded-lg border border-[var(--ms-border)] text-[var(--ms-text)] text-base cursor-pointer',
           ),
         ],
-        ['Cancel'],
+        buttonContent('Cancel', 'close', h),
       ),
       h.button(
         [
@@ -180,7 +221,7 @@ const deleteEverythingContent = (
           h.OnClick(Message.ConfirmedDeleteEverything()),
           h.Disabled(model.deleteEverythingText !== 'delete'),
         ],
-        ['Delete'],
+        buttonContent('Delete', 'trash', h),
       ),
     ],
   ),
@@ -323,7 +364,7 @@ export const confirmDialogView = (
                           ),
                           h.OnClick(Message.ConfirmedPlanImport()),
                         ],
-                        ['Import'],
+                        buttonContent('Import', 'check', h),
                       ),
                     ],
                   ),
@@ -349,97 +390,6 @@ export const confirmDialogView = (
       },
     },
     toParentMessage: message => Message.GotConfirmDialogMessage({ message }),
-  })
-
-export const stepPickerDialogView = (
-  model: Model,
-  h: HtmlBuilder<Message>,
-): Html =>
-  h.submodel({
-    slotId: model.stepPickerDialog.id,
-    model: model.stepPickerDialog,
-    view: Dialog.view,
-    viewInputs: {
-      hasDescription: true,
-      toView: render => {
-        const candidates = Option.match(model.maybeRoutineDraft, {
-          onNone: () => model.products,
-          onSome: draft =>
-            Array.filter(
-              model.products,
-              product =>
-                !Array.some(draft.steps, step => step.productId === product.id),
-            ),
-        })
-        const content = Array.match(candidates, {
-          onEmpty: () => [
-            h.p(
-              [h.Class('text-sm text-[var(--ms-text-2)] mb-5')],
-              [
-                'Every product is already in this routine. Add another product first.',
-              ],
-            ),
-          ],
-          onNonEmpty: products => [
-            h.h2(
-              [
-                ...render.title,
-                h.Class('text-lg font-semibold text-[var(--ms-text)] mb-3'),
-              ],
-              ['Add a step'],
-            ),
-            h.ul(
-              [h.Class('flex flex-col')],
-              Array.map(products, product =>
-                h.keyed('li')(
-                  product.id,
-                  [h.Class('border-b border-[var(--ms-border)] last:border-0')],
-                  [
-                    h.div(
-                      [h.Class('flex items-center gap-3 py-3 min-h-12')],
-                      [
-                        h.div(
-                          [h.Class('flex-1 min-w-0')],
-                          [
-                            h.p(
-                              [
-                                h.Class(
-                                  'text-base text-[var(--ms-text)] truncate',
-                                ),
-                              ],
-                              [product.name],
-                            ),
-                            h.p(
-                              [h.Class('text-sm text-[var(--ms-text-2)]')],
-                              [product.kind],
-                            ),
-                          ],
-                        ),
-                        h.button(
-                          [
-                            h.Class(
-                              'h-12 px-4 rounded-lg bg-[var(--ms-accent)] text-[#1a120a] font-semibold text-sm cursor-pointer',
-                            ),
-                            h.OnClick(
-                              Message.SelectedStepProduct({
-                                productId: product.id,
-                              }),
-                            ),
-                          ],
-                          ['Add'],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        })
-        return dialogPanel(render, content, h)
-      },
-    },
-    toParentMessage: message => Message.GotStepPickerDialogMessage({ message }),
   })
 
 const simpleToastView = (model: Model, h: HtmlBuilder<Message>): Html =>
@@ -476,26 +426,31 @@ const simpleToastView = (model: Model, h: HtmlBuilder<Message>): Html =>
 export const bottomBar = (model: Model, h: HtmlBuilder<Message>): Html => {
   const tabs: ReadonlyArray<{
     readonly label: string
+    readonly iconName: IconName
     readonly message: Message
     readonly isActive: boolean
   }> = [
     {
       label: 'Today',
+      iconName: 'today',
       message: Message.ClickedTabToday(),
       isActive: model.page._tag === 'Today',
     },
     {
       label: 'Routines',
+      iconName: 'list',
       message: Message.ClickedTabRoutines(),
       isActive: model.page._tag === 'Routines',
     },
     {
       label: 'Products',
+      iconName: 'box',
       message: Message.ClickedTabProducts(),
       isActive: model.page._tag === 'Products',
     },
     {
       label: 'History',
+      iconName: 'clock',
       message: Message.ClickedTabHistory(),
       isActive: model.page._tag === 'History',
     },
@@ -521,7 +476,7 @@ export const bottomBar = (model: Model, h: HtmlBuilder<Message>): Html => {
               h.OnClick(tab.message),
               ...(tab.isActive ? [h.AriaCurrent('page')] : []),
             ],
-            [h.span([], [tab.label])],
+            [icon(tab.iconName, h, 'h-5 w-5'), h.span([], [tab.label])],
           ),
         ),
       ),
@@ -547,7 +502,6 @@ export const shell = (
       ),
       ...(model.page._tag === 'Run' ? [] : [bottomBar(model, h)]),
       confirmDialogView(model, h),
-      stepPickerDialogView(model, h),
       simpleToastView(model, h),
     ],
   )

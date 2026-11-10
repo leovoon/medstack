@@ -5,6 +5,7 @@ import { Switch } from '@foldkit/ui'
 import { Message } from '../message'
 import type { Model } from '../model'
 import {
+  buttonContent,
   fieldLabelClassName,
   helperTextClassName,
   inputClassName,
@@ -108,7 +109,7 @@ export const settingsView = (model: Model, h: HtmlBuilder<Message>): Html =>
                   h.Class(secondaryButtonClassName),
                   h.OnClick(Message.ClickedGetPlan()),
                 ],
-                ['Get a plan from ChatGPT'],
+                buttonContent('Get a plan from ChatGPT', 'external', h),
               ),
               h.p(
                 [h.Class(helperTextClassName)],
@@ -121,28 +122,28 @@ export const settingsView = (model: Model, h: HtmlBuilder<Message>): Html =>
                   h.Class(secondaryButtonClassName),
                   h.OnClick(Message.ClickedExport()),
                 ],
-                ['Export data'],
+                buttonContent('Export data', 'download', h),
               ),
               h.button(
                 [
                   h.Class(secondaryButtonClassName),
                   h.OnClick(Message.ClickedImport()),
                 ],
-                ['Import data'],
+                buttonContent('Import data', 'upload', h),
               ),
               h.button(
                 [
                   h.Class(secondaryButtonClassName),
                   h.OnClick(Message.ClickedClearHistory()),
                 ],
-                ['Clear history'],
+                buttonContent('Clear history', 'trash', h),
               ),
               h.button(
                 [
                   h.Class(secondaryButtonClassName),
                   h.OnClick(Message.ClickedDeleteEverything()),
                 ],
-                ['Delete everything'],
+                buttonContent('Delete everything', 'trash', h),
               ),
               h.p(
                 [h.Class(helperTextClassName)],

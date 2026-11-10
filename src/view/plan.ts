@@ -4,6 +4,7 @@ import { planPrompt } from '../domain'
 import { Message } from '../message'
 import type { Model } from '../model'
 import {
+  buttonContent,
   cardClassName,
   fieldLabelClassName,
   helperTextClassName,
@@ -85,7 +86,7 @@ const askStage = (
         h.Disabled(model.planMedicine.trim() === ''),
         h.OnClick(Message.ClickedCopyPlanPrompt()),
       ],
-      ['Copy the prompt'],
+      buttonContent('Copy the prompt', 'copy', h),
     ),
     h.a(
       [
@@ -97,14 +98,14 @@ const askStage = (
         h.Target('_blank'),
         h.Rel('noreferrer'),
       ],
-      ['Open ChatGPT'],
+      buttonContent('Open ChatGPT', 'external', h),
     ),
     h.button(
       [
         h.Class(secondaryButtonClassName + ' mt-3'),
         h.OnClick(Message.ClickedPlanPasteStep()),
       ],
-      ['I have the answer'],
+      buttonContent('I have the answer', 'clipboard', h),
     ),
     h.details(
       [h.Class('mt-6')],
@@ -159,14 +160,14 @@ const pasteStage = (
       h.Disabled(model.planPaste.trim() === ''),
       h.OnClick(Message.SubmittedPlanImport()),
     ],
-    ['Import the plan'],
+    buttonContent('Import the plan', 'check', h),
   ),
   h.button(
     [
       h.Class(secondaryButtonClassName + ' mt-3'),
       h.OnClick(Message.ClickedPlanAskStep()),
     ],
-    ['Back'],
+    buttonContent('Back', 'arrowLeft', h),
   ),
 ]
 

@@ -6,44 +6,47 @@ import type { ProductDraft, ProductKind } from '../domain'
 import { Message } from '../message'
 import type { Model } from '../model'
 import {
+  buttonContent,
   fieldLabelClassName,
   helperTextClassName,
   inputClassName,
+  optionChipClassName,
   primaryButtonClassName,
   secondaryButtonClassName,
 } from './components'
+import type { IconName } from './icons'
 
 const STEP_COUNT = PRODUCT_WIZARD_LAST_STEP + 1
 
-const KIND_OPTIONS: ReadonlyArray<ProductKind> = [
-  'Cream',
-  'Ointment',
-  'Gel',
-  'Lotion',
-  'Drops',
-  'Spray',
-  'Tablet',
-  'Capsule',
-  'Syrup',
-  'Other',
+const KIND_OPTIONS: ReadonlyArray<{
+  readonly kind: ProductKind
+  readonly icon: IconName
+}> = [
+  { kind: 'Cream', icon: 'tube' },
+  { kind: 'Ointment', icon: 'jar' },
+  { kind: 'Gel', icon: 'droplet' },
+  { kind: 'Lotion', icon: 'pumpBottle' },
+  { kind: 'Drops', icon: 'dropper' },
+  { kind: 'Spray', icon: 'spray' },
+  { kind: 'Tablet', icon: 'tablet' },
+  { kind: 'Capsule', icon: 'capsule' },
+  { kind: 'Syrup', icon: 'bottle' },
+  { kind: 'Other', icon: 'dots' },
 ]
 
-const AMOUNT_OPTIONS: ReadonlyArray<string> = [
-  'Thin layer',
-  '2 pumps',
-  'A few drops',
-  '1 tablet',
-  '1 capsule',
-  '1 spoon',
+const AMOUNT_OPTIONS: ReadonlyArray<{
+  readonly value: string
+  readonly icon: IconName
+}> = [
+  { value: 'Thin layer', icon: 'layer' },
+  { value: '2 pumps', icon: 'pumpBottle' },
+  { value: 'A few drops', icon: 'droplet' },
+  { value: '1 tablet', icon: 'tablet' },
+  { value: '1 capsule', icon: 'capsule' },
+  { value: '1 spoon', icon: 'spoon' },
 ]
 
 const WAIT_OPTIONS: ReadonlyArray<number> = [0, 5, 10, 15, 20, 30, 60]
-
-const chipClassName = (isActive: boolean): string =>
-  'h-14 rounded-xl border text-base font-medium cursor-pointer px-2 ' +
-  (isActive
-    ? 'border-[var(--ms-accent)] bg-[var(--ms-surface)] text-[var(--ms-text)]'
-    : 'border-[var(--ms-border)] bg-transparent text-[var(--ms-text)]')
 
 const progress = (draft: ProductDraft, h: HtmlBuilder<Message>): Html =>
   h.div(
@@ -82,14 +85,18 @@ const backRow = (
 ): ReadonlyArray<Html> => [
   h.button(
     [
-      h.Class(secondaryButtonClassName + ' mt-3'),
+      h.Class(secondaryButtonClassName + ' gap-2'),
       h.OnClick(
         draft.wizardStep === 0
           ? Message.ClickedBackFromEditor()
           : Message.ClickedProductBack(),
       ),
     ],
-    [draft.wizardStep === 0 ? 'Cancel' : 'Back'],
+    buttonContent(
+      draft.wizardStep === 0 ? 'Cancel' : 'Back',
+      draft.wizardStep === 0 ? 'close' : 'arrowLeft',
+      h,
+    ),
   ),
 ]
 
@@ -104,7 +111,7 @@ const photoBlock = (
           h.Class(secondaryButtonClassName + ' w-full mb-4'),
           h.OnClick(Message.ClickedPickLabelPhoto()),
         ],
-        ['Take a photo of the label'],
+        buttonContent('Take a photo of the label', 'camera', h),
       )
     : h.div(
         [h.Class('flex items-center gap-3 mb-4')],
@@ -121,7 +128,7 @@ const photoBlock = (
               h.Class(secondaryButtonClassName + ' flex-1'),
               h.OnClick(Message.ClickedPickLabelPhoto()),
             ],
-            ['Retake photo'],
+            buttonContent('Retake photo', 'refresh', h),
           ),
         ],
       ),
@@ -168,14 +175,14 @@ const kindStep = (
   hint('Tap the one that matches the tube, bottle, or box.', h),
   h.div(
     [h.Class('grid grid-cols-2 gap-3')],
-    Array.map(KIND_OPTIONS, kind =>
+    Array.map(KIND_OPTIONS, option =>
       h.keyed('button')(
-        kind,
+        option.kind,
         [
-          h.Class(chipClassName(draft.kind === kind)),
-          h.OnClick(Message.SelectedProductKind({ kind })),
+          h.Class(optionChipClassName(draft.kind === option.kind)),
+          h.OnClick(Message.SelectedProductKind({ kind: option.kind })),
         ],
-        [kind],
+        buttonContent(option.kind, option.icon, h),
       ),
     ),
   ),
@@ -189,14 +196,14 @@ const amountStep = (
   hint('Tap one, or type it in your own words.', h),
   h.div(
     [h.Class('grid grid-cols-2 gap-3 mb-4')],
-    Array.map(AMOUNT_OPTIONS, amount =>
+    Array.map(AMOUNT_OPTIONS, option =>
       h.keyed('button')(
-        amount,
+        option.value,
         [
-          h.Class(chipClassName(draft.amount === amount)),
-          h.OnClick(Message.SelectedProductAmount({ value: amount })),
+          h.Class(optionChipClassName(draft.amount === option.value)),
+          h.OnClick(Message.SelectedProductAmount({ value: option.value })),
         ],
-        [amount],
+        buttonContent(option.value, option.icon, h),
       ),
     ),
   ),
@@ -238,10 +245,10 @@ const waitStep = (
       h.keyed('button')(
         String(minutes),
         [
-          h.Class(chipClassName(draft.defaultWaitMinutes === minutes)),
+          h.Class(optionChipClassName(draft.defaultWaitMinutes === minutes)),
           h.OnClick(Message.SelectedProductWait({ minutes })),
         ],
-        [`${minutes} min`],
+        buttonContent(`${minutes} min`, 'clock', h),
       ),
     ),
   ),
@@ -279,17 +286,17 @@ const usageStep = (
     [
       h.button(
         [
-          h.Class(chipClassName(!draft.asNeeded) + ' !h-16'),
+          h.Class(optionChipClassName(!draft.asNeeded) + ' !h-16 gap-3'),
           h.OnClick(Message.ToggledProductAsNeeded({ isChecked: false })),
         ],
-        ['Part of a routine'],
+        buttonContent('Part of a routine', 'list', h),
       ),
       h.button(
         [
-          h.Class(chipClassName(draft.asNeeded) + ' !h-16'),
+          h.Class(optionChipClassName(draft.asNeeded) + ' !h-16 gap-3'),
           h.OnClick(Message.ToggledProductAsNeeded({ isChecked: true })),
         ],
-        ['Only when I need it'],
+        buttonContent('Only when I need it', 'plusCircle', h),
       ),
     ],
   ),
@@ -316,7 +323,6 @@ const reviewStep = (
     },
     { label: 'Use', value: draft.asNeeded ? 'Only when needed' : 'Routine' },
   ]
-  const isEditing = Option.isSome(draft.maybeProductId)
   return [
     question('Check it over', h),
     h.ul(
@@ -345,20 +351,31 @@ const reviewStep = (
     ...Array.map(errors, error =>
       h.p([h.Class('text-sm text-[var(--ms-text-2)] mb-2')], [error]),
     ),
+  ]
+}
+
+const reviewActions = (
+  draft: ProductDraft,
+  h: HtmlBuilder<Message>,
+): ReadonlyArray<Html> => {
+  const errors = productDraftErrors(draft)
+  const isEditing = Option.isSome(draft.maybeProductId)
+  return [
     h.button(
       [
-        h.Class(primaryButtonClassName),
+        h.Class(primaryButtonClassName + ' gap-2'),
         h.Disabled(errors.length > 0),
         h.OnClick(Message.SubmittedProduct()),
       ],
-      [isEditing ? 'Save changes' : 'Add product'],
+      buttonContent(isEditing ? 'Save changes' : 'Add product', 'check', h),
     ),
+    ...backRow(draft, h),
     ...(isEditing
       ? [
           h.button(
             [
               h.Class(
-                'h-12 rounded-xl border border-[var(--ms-border)] text-[var(--ms-text-2)] text-base cursor-pointer mt-3',
+                secondaryButtonClassName + ' gap-2 text-[var(--ms-text-2)]',
               ),
               h.OnClick(
                 Message.ClickedDeleteProduct({
@@ -366,7 +383,7 @@ const reviewStep = (
                 }),
               ),
             ],
-            ['Delete product'],
+            buttonContent('Delete product', 'trash', h),
           ),
         ]
       : []),
@@ -419,10 +436,27 @@ export const productEditorView = (
                     ? usageStep(draft, h)
                     : reviewStep(model, draft, h)
 
-      const canContinue = step !== 0 || draft.name.trim() !== ''
+      const canContinue = draft.name.trim() !== ''
+      const nextButton = (isEnabled: boolean): Html =>
+        h.button(
+          [
+            h.Class(primaryButtonClassName + ' gap-2'),
+            h.Disabled(!isEnabled),
+            h.OnClick(Message.ClickedProductNext()),
+          ],
+          buttonContent('Next', 'arrowRight', h),
+        )
+      const needsNext = step === 0 || step >= 2
+      const actions: ReadonlyArray<Html> =
+        step === 6
+          ? reviewActions(draft, h)
+          : [
+              ...(needsNext ? [nextButton(step !== 0 || canContinue)] : []),
+              ...backRow(draft, h),
+            ]
 
       return h.div(
-        [],
+        [h.Class('flex flex-col min-h-[70vh]')],
         [
           h.div(
             [h.Class('flex items-center justify-between mb-4')],
@@ -439,32 +473,7 @@ export const productEditorView = (
           ),
           progress(draft, h),
           ...body,
-          ...(step === 0
-            ? [
-                h.button(
-                  [
-                    h.Class(primaryButtonClassName + ' mt-3'),
-                    h.Disabled(!canContinue),
-                    h.OnClick(Message.ClickedProductNext()),
-                  ],
-                  ['Next'],
-                ),
-              ]
-            : []),
-          ...(step === 1 || step === 5
-            ? []
-            : step === 2 || step === 3 || step === 4
-              ? [
-                  h.button(
-                    [
-                      h.Class(primaryButtonClassName + ' mt-3'),
-                      h.OnClick(Message.ClickedProductNext()),
-                    ],
-                    ['Next'],
-                  ),
-                ]
-              : []),
-          ...backRow(draft, h),
+          h.div([h.Class('mt-auto pt-8 flex flex-col gap-3')], actions),
         ],
       )
     },

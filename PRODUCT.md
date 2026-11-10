@@ -210,26 +210,44 @@ Full-height, one decision per screen. No bottom bar.
 List: name, time or `Anytime`, `4 steps`, first product + "+3 more", `Paused` badge.
 Buttons: `New routine`. Row taps → editor. Empty state explains sequence + wait.
 
-### 3.4 Routine editor
+### 3.4 Routine editor — a three-step wizard, fixed names
 
-- Name field.
-- Time field: `Any time` switch; when off, a time input (`type="time"`).
-- Paused switch: `Pause this routine` ("hidden from Today, history kept").
-- **Steps**: ordered list, each row: position number, product name, kind, wait
-  ("wait 20 min"), and `↑ ↓ ✕` controls. `↑` on the first row and `↓` on the last are
-  disabled, not hidden. Wait is editable per step (number input, minutes, 0..240, blank = 0)
-  and defaults to the product's `defaultWaitMinutes` when added.
-- `Add step` → picker Dialog listing products not yet in the routine (unless none are left, then
-  the dialog explains: "Every product is already in this routine. Add another product first.").
+Naming is the hard part, so the wizard starts from names people already use. Three steps, the
+same on every visit, new or edited:
+
+| Step | Question | Control | Advances by |
+| --- | --- | --- | --- |
+| 1 | When do you use it? | six fixed preset chips, plus `Or name it yourself` for a free name | `Next`, disabled while the name is blank |
+| 2 | Which products, in what order? | the chosen steps in order, then one-tap rows for unused products | `Next` |
+| 3 | Check it over | name, time chips + exact time, detail, pause, errors | `Create routine` / `Save changes` |
+
+- Presets fill in name **and** time in one tap: `Morning` 07:30, `Midday` 12:00, `Evening` 18:00,
+  `Night` 21:30, `After shower` any time (no clock is invented), `Before bed` 22:30. The name
+  field stays editable, so a preset is a starting point, not a lock.
+- Header shows `Step 1 of 3` and a thin progress line. `Cancel` on every step; `Back` from steps
+  2 and 3. Actions sit at the foot of the screen, one primary full-width button plus quieter
+  ones below it.
+- **Steps**: ordered list, each row: position number, kind icon, product name, kind, wait
+  (number input, minutes, 0..240, blank = 0, defaults to the product's `defaultWaitMinutes`),
+  and `↑ ↓ ✕` controls. `↑` on the first row and `↓` on the last are disabled, not hidden.
+- Products are added inline: step 2 lists the products the routine does not use yet as rows
+  (`name`, `area · 20 min wait`, `+`); one tap appends it as the next step. When every product is
+  already in the routine the list is replaced by *"Every product is already in this routine."*,
+  and with no products at all, *"Add a product first, then come back and put it in order."*
 - Warning row when a step's wait conflicts with its product default:
   "Clobetasol is set to 20 min, this step waits 5." → tap to reset to 20. Informational only.
-- Helper text under the steps list, muted, non-prescriptive:
+- Helper text under the steps, muted, non-prescriptive:
   *"Thin medicated creams first, thick emollients and ointments last. Use the wait your doctor
   or pharmacist gave you."*
-- Save disabled until valid, with inline reasons below the field (`Name is required`,
-  `Add at least one step`). Cancel discards with no confirmation (nothing was saved).
-- Delete routine: in the editor footer, `Dialog` confirm naming the routine. Doses are kept
-  (they are history) and render as "Routine deleted" in History.
+- Step 3 time: `Any time` chip plus fixed times (07:30, 08:00, 12:00, 18:00, 21:30, 22:30) that
+  include every preset time, so a preset is always visibly selected; a `type="time"` input
+  covers anything else.
+- Step 3 also holds `Detail (optional)`, the `Pause this routine` switch ("hidden from Today,
+  history kept"), the plan-origin line for plan routines, and the inline reasons that disable
+  save (`Name is required`, `Add at least one step`). Cancel discards with no confirmation
+  (nothing was saved).
+- Delete routine: step 3 footer, `Dialog` confirm naming the routine. Doses are kept (they are
+  history) and render as "Routine deleted" in History.
 
 ### 3.5 Products
 
@@ -258,6 +276,8 @@ new or edited; nothing is a single wall of fields.
 - Validation appears on step 7, next to the save button: `Name is required`,
   `Wait must be 0–240 minutes`. The save button is disabled while an error stands.
 - `Only when I need it` forces the wait to 0, as before.
+- Every chip and action button in the wizard carries a line icon to the left of its text
+  (see §7); the icon never replaces the label.
 - Delete (existing products only) sits on step 7, below save, via `Dialog`: **"Delete
   Clobetasol propionate? It is in 1 routine. Past doses are kept."** — deleting removes the
   product from any routine steps, and a routine that ends up with 0 steps is kept but flagged
@@ -407,6 +427,10 @@ nothing should make him think.
   anywhere. Product name on Run: 28–32px, weight 600, `text-wrap: balance`. Countdown:
   `tabular-nums`, weight 600, big enough to read at arm's length (≥ 56px), letter-spacing
   slightly tight, `font-variant-numeric: tabular-nums`.
+- **Icons**: hand-drawn inline SVG, 24×24, `stroke="currentColor"`, `fill="none"`, declared
+  once in `src/view/icons.ts` (`kindIcon()` maps product kinds). Every option chip and action
+  button shows one before its label; icons are `aria-hidden` and decorative — the text label is
+  always present, so no accessible name depends on an icon. No icon package, no emoji.
 - **Touch**: every target ≥ 48px in its smallest dimension; primary Run buttons full width,
   64px; ≥ 12px gap between adjacent targets. No hover-only affordances, no long-press, no
   swipe-to-delete. One-handed reach: all primary actions in the bottom 45% of the screen.

@@ -14,6 +14,7 @@ import {
 import { Message } from '../message'
 import type { Model } from '../model'
 import {
+  buttonContent,
   cardClassName,
   dotsView,
   helperTextClassName,
@@ -278,14 +279,14 @@ const setupPanel = (model: Model, h: HtmlBuilder<Message>): Html =>
               h.Class(primaryButtonClassName),
               h.OnClick(Message.ClickedNewProduct()),
             ],
-            ['Add a product'],
+            buttonContent('Add a product', 'plus', h),
           ),
           h.button(
             [
               h.Class(secondaryButtonClassName),
               h.OnClick(Message.ClickedNewRoutine()),
             ],
-            ['Create a routine'],
+            buttonContent('Create a routine', 'list', h),
           ),
         ],
       ),

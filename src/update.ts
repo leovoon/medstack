@@ -111,11 +111,6 @@ const closeConfirm = (model: Model): Model =>
     confirmDialog: () => Dialog.close(model.confirmDialog).model,
   })
 
-const openStepPicker = (model: Model): Model =>
-  modifyFields(model, {
-    stepPickerDialog: () => Dialog.open(model.stepPickerDialog).model,
-  })
-
 const foldConfirmDialogOutMessage = Dialog.OutMessage.match<
   Update.Step<Model, Message>
 >({
@@ -132,27 +127,6 @@ const foldConfirmDialog = Update.foldChild({
     message: Extract<Message, { _tag: 'GotConfirmDialogMessage' }>['message'],
   ): Message => Message.GotConfirmDialogMessage({ message }),
   foldOutMessage: foldConfirmDialogOutMessage,
-})
-
-const foldStepPickerDialogOutMessage = Dialog.OutMessage.match<
-  Update.Step<Model, Message>
->({
-  Opened: () => model => ({ model }),
-  Closed: () => model => ({ model }),
-})
-
-const foldStepPickerDialog = Update.foldChild({
-  update: Dialog.update,
-  read: (model: Model) => Option.some(model.stepPickerDialog),
-  write: (model: Model, next: Model['stepPickerDialog']) =>
-    modifyFields(model, { stepPickerDialog: () => next }),
-  toParentMessage: (
-    message: Extract<
-      Message,
-      { _tag: 'GotStepPickerDialogMessage' }
-    >['message'],
-  ): Message => Message.GotStepPickerDialogMessage({ message }),
-  foldOutMessage: foldStepPickerDialogOutMessage,
 })
 
 const setToast = (model: Model, message: string): Model =>
@@ -176,12 +150,12 @@ const baseWithSaved = (saved: SavedState): Model => {
     nowMs: 0,
     maybeProductDraft: Option.none(),
     maybeRoutineDraft: Option.none(),
+    routineWizardStep: 0,
     maybeConfirm: Option.none(),
     maybeImportSnapshot: Option.none(),
     deleteEverythingText: '',
     historyOpenDayKey: Option.none(),
     confirmDialog: Dialog.init({ id: 'confirm-dialog' }),
-    stepPickerDialog: Dialog.init({ id: 'step-picker-dialog' }),
     maybeToast: Option.none(),
     planStage: 'ask' as const,
     planMedicine: '',
@@ -453,6 +427,7 @@ export const update = (model: Model, message: Message) =>
       navigate(
         modifyFields(model, {
           maybeRoutineDraft: () => Option.some(emptyRoutineDraft()),
+          routineWizardStep: () => 0,
         }),
         Page.RoutineEditor({ routineId: Option.none() }),
       ),
@@ -464,10 +439,35 @@ export const update = (model: Model, message: Message) =>
             modifyFields(model, {
               maybeRoutineDraft: () =>
                 Option.some(routineDraftFromRoutine(routine)),
+              routineWizardStep: () => 0,
             }),
             Page.RoutineEditor({ routineId: Option.some(routineId) }),
           ),
       }),
+    ClickedRoutineNext: () => ({
+      model: modifyFields(model, {
+        routineWizardStep: () => Math.min(model.routineWizardStep + 1, 2),
+      }),
+    }),
+    ClickedRoutineBack: () => {
+      if (model.routineWizardStep === 0) {
+        return navigate(
+          modifyFields(model, { maybeRoutineDraft: () => Option.none() }),
+          Page.Routines(),
+        )
+      }
+      return {
+        model: modifyFields(model, {
+          routineWizardStep: () => model.routineWizardStep - 1,
+        }),
+      }
+    },
+    SelectedRoutinePreset: ({ name, time }) =>
+      updateRoutineDraft(model, draft => ({
+        ...draft,
+        name,
+        scheduledTime: time === '' ? Option.none() : Option.some(time),
+      })),
     UpdatedRoutineName: ({ value }) =>
       updateRoutineDraft(model, draft => ({ ...draft, name: value })),
     UpdatedRoutineDetail: ({ value }) =>
@@ -494,7 +494,6 @@ export const update = (model: Model, message: Message) =>
         ...draft,
         isPaused: isChecked,
       })),
-    ClickedAddStep: () => ({ model: openStepPicker(model) }),
     SelectedStepProduct: ({ productId }) =>
       Option.match(model.maybeRoutineDraft, {
         onNone: () => ({ model }),
@@ -518,7 +517,6 @@ export const update = (model: Model, message: Message) =>
                   { productId, waitMinutes: product.defaultWaitMinutes },
                 ],
               }),
-            stepPickerDialog: () => Dialog.close(model.stepPickerDialog).model,
           })
           return { model: next }
         },
@@ -1044,8 +1042,6 @@ export const update = (model: Model, message: Message) =>
     FailedSaveState: () => ({ model }),
 
     GotConfirmDialogMessage: ({ message }) => foldConfirmDialog(model, message),
-    GotStepPickerDialogMessage: ({ message }) =>
-      foldStepPickerDialog(model, message),
     ClickedDismissToast: () => ({
       model: modifyFields(model, { maybeToast: () => Option.none() }),
     }),

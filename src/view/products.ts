@@ -4,6 +4,7 @@ import type { Html, HtmlBuilder } from 'foldkit/html'
 import { Message } from '../message'
 import type { Model } from '../model'
 import {
+  buttonContent,
   cardClassName,
   helperTextClassName,
   primaryButtonClassName,
@@ -43,7 +44,7 @@ export const productsView = (model: Model, h: HtmlBuilder<Message>): Html =>
               h.Class(primaryButtonClassName + ' !w-auto px-5 !h-12'),
               h.OnClick(Message.ClickedNewProduct()),
             ],
-            ['New product'],
+            buttonContent('New product', 'plus', h),
           ),
         ],
       ),

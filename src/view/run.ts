@@ -14,6 +14,7 @@ import {
 import { Message } from '../message'
 import type { Model } from '../model'
 import {
+  buttonContent,
   primaryButtonClassName,
   quietButtonClassName,
   secondaryButtonClassName,
@@ -119,14 +120,14 @@ const readyView = (
               h.Class(primaryButtonClassName),
               h.OnClick(Message.ClickedApplyStep()),
             ],
-            [verbLabel],
+            buttonContent(verbLabel, 'check', h),
           ),
           h.button(
             [
               h.Class(secondaryButtonClassName),
               h.OnClick(Message.ClickedSkipStep()),
             ],
-            ['Skip'],
+            buttonContent('Skip', 'close', h),
           ),
         ],
       ),
@@ -222,7 +223,7 @@ const waitingView = (
               h.Class(secondaryButtonClassName),
               h.OnClick(Message.ClickedSkipWait()),
             ],
-            ['Skip wait'],
+            buttonContent('Skip wait', 'arrowRight', h),
           ),
         ],
       ),
@@ -300,7 +301,7 @@ const finishedView = (
       ),
       h.button(
         [h.Class(primaryButtonClassName), h.OnClick(Message.ClickedExitRun())],
-        ['Back to today'],
+        buttonContent('Back to today', 'arrowLeft', h),
       ),
     ],
   )
@@ -323,7 +324,7 @@ const noRunView = (h: HtmlBuilder<Message>): Html =>
           h.Class(secondaryButtonClassName + ' !w-auto px-5'),
           h.OnClick(Message.ClickedExitRun()),
         ],
-        ['Back to today'],
+        buttonContent('Back to today', 'arrowLeft', h),
       ),
     ],
   )

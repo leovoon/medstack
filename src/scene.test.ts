@@ -243,6 +243,77 @@ describe('view', () => {
     )
   })
 
+  test('the routine wizard asks when first, with fixed names', () => {
+    const editorPage = Page.RoutineEditor({ routineId: Option.none() })
+    scene(
+      { update, view },
+      given(
+        modelWith({
+          page: editorPage,
+          maybeRoutineDraft: Option.some({
+            maybeRoutineId: Option.none(),
+            name: '',
+            scheduledTime: Option.none(),
+            isPaused: false,
+            steps: [],
+            detail: '',
+          }),
+        }),
+      ),
+      expect(text('Step 1 of 3')).toExist(),
+      expect(text('When do you use it?')).toExist(),
+      expect(role('button', { name: 'Morning' })).toExist(),
+      expect(role('button', { name: 'Night' })).toExist(),
+      expect(role('button', { name: 'Before bed' })).toExist(),
+    )
+  })
+
+  test('the routine wizard puts products in order on step two', () => {
+    scene(
+      { update, view },
+      given(
+        modelWith({
+          products: [product('a', { name: 'Clobetasol' })],
+          page: Page.RoutineEditor({ routineId: Option.none() }),
+          routineWizardStep: 1,
+          maybeRoutineDraft: Option.some({
+            maybeRoutineId: Option.none(),
+            name: 'Night',
+            scheduledTime: Option.some('21:30'),
+            isPaused: false,
+            steps: [],
+            detail: '',
+          }),
+        }),
+      ),
+      expect(text('Which products, in what order?')).toExist(),
+      expect(role('button', { name: /Clobetasol/ })).toExist(),
+    )
+  })
+
+  test('the routine wizard review offers fixed times and saves', () => {
+    scene(
+      { update, view },
+      given(
+        modelWith({
+          page: Page.RoutineEditor({ routineId: Option.none() }),
+          routineWizardStep: 2,
+          maybeRoutineDraft: Option.some({
+            maybeRoutineId: Option.none(),
+            name: 'Night',
+            scheduledTime: Option.some('21:30'),
+            isPaused: false,
+            steps: [{ productId: 'a', waitMinutes: 20 }],
+            detail: '',
+          }),
+        }),
+      ),
+      expect(role('button', { name: 'Any time' })).toExist(),
+      expect(role('button', { name: '22:30' })).toExist(),
+      expect(role('button', { name: 'Create routine' })).toExist(),
+    )
+  })
+
   test('routine editor shows plan origin line only for plan routines', () => {
     const planRoutine = routine('r1', {
       origin: Origin.Plan({
@@ -256,6 +327,7 @@ describe('view', () => {
     const model = modelWith({
       routines: [planRoutine],
       page: Page.RoutineEditor({ routineId: Option.some('r1') }),
+      routineWizardStep: 2,
       maybeRoutineDraft: Option.some({
         maybeRoutineId: Option.some('r1'),
         name: 'R1',
@@ -275,6 +347,7 @@ describe('view', () => {
     const manualModel = modelWith({
       routines: [routine('r1')],
       page: Page.RoutineEditor({ routineId: Option.some('r1') }),
+      routineWizardStep: 2,
       maybeRoutineDraft: Option.some({
         maybeRoutineId: Option.some('r1'),
         name: 'R1',

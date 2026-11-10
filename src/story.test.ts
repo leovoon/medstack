@@ -410,14 +410,10 @@ describe('update', () => {
       )
     })
 
-    test('add step uses product default wait and closes the picker', () => {
+    test('adding a product appends a step with the product default wait', () => {
       const inputModel = modelWith({
         products: [product('p1', { defaultWaitMinutes: 5 })],
         maybeRoutineDraft: Option.some(routineDraft()),
-        stepPickerDialog: {
-          ...baseModel().stepPickerDialog,
-          isOpen: true,
-        },
       })
       story(
         update,
@@ -428,7 +424,70 @@ describe('update', () => {
           expect(draftSteps(next)).toStrictEqual([
             { productId: 'p1', waitMinutes: 5 },
           ])
-          expect(next.stepPickerDialog.isOpen).toBe(false)
+        }),
+      )
+    })
+
+    test('a preset names the routine and sets its time', () => {
+      const inputModel = modelWith({
+        maybeRoutineDraft: Option.some(routineDraft()),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(
+          Message.SelectedRoutinePreset({ name: 'Night', time: '21:30' }),
+        ),
+        Command.expectNone(),
+        model(next => {
+          const draft = Option.getOrThrow(next.maybeRoutineDraft)
+          expect(draft.name).toBe('Night')
+          expect(draft.scheduledTime).toStrictEqual(Option.some('21:30'))
+        }),
+      )
+    })
+
+    test('a preset with no time leaves the routine unscheduled', () => {
+      const inputModel = modelWith({
+        maybeRoutineDraft: Option.some(
+          routineDraft({ scheduledTime: Option.some('08:00') }),
+        ),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(
+          Message.SelectedRoutinePreset({ name: 'After shower', time: '' }),
+        ),
+        Command.expectNone(),
+        model(next => {
+          const draft = Option.getOrThrow(next.maybeRoutineDraft)
+          expect(draft.name).toBe('After shower')
+          expect(draft.scheduledTime).toStrictEqual(Option.none())
+        }),
+      )
+    })
+
+    test('the routine wizard walks forward and backward', () => {
+      const inputModel = modelWith({
+        maybeRoutineDraft: Option.some(routineDraft({ name: 'Night' })),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedRoutineNext()),
+        Command.expectNone(),
+        model(next => {
+          expect(next.routineWizardStep).toBe(1)
+        }),
+      )
+      story(
+        update,
+        given(modelWith({ routineWizardStep: 1 })),
+        message(Message.ClickedRoutineBack()),
+        Command.expectNone(),
+        model(next => {
+          expect(next.routineWizardStep).toBe(0)
         }),
       )
     })

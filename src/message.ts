@@ -51,7 +51,9 @@ export const Message = defineMessageUnion({
   ToggledRoutineAnytime: { isChecked: Schema.Boolean },
   UpdatedRoutineTime: { value: Schema.String },
   ToggledRoutinePaused: { isChecked: Schema.Boolean },
-  ClickedAddStep: {},
+  ClickedRoutineNext: {},
+  ClickedRoutineBack: {},
+  SelectedRoutinePreset: { name: Schema.String, time: Schema.String },
   SelectedStepProduct: { productId: Schema.String },
   ClickedRemoveStep: { stepIndex: Schema.Number },
   ClickedMoveStepUp: { stepIndex: Schema.Number },
@@ -144,7 +146,6 @@ export const Message = defineMessageUnion({
 
   // submodel bridges
   GotConfirmDialogMessage: { message: Dialog.Message },
-  GotStepPickerDialogMessage: { message: Dialog.Message },
   ClickedDismissToast: {},
 })
 

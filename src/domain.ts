@@ -654,6 +654,30 @@ export const productDraftErrors = (
 
 const StringTrimEmpty = (value: string): boolean => value.trim().length === 0
 
+/** The names people actually use, so the routine wizard never asks for a name first. */
+export const ROUTINE_PRESETS: ReadonlyArray<{
+  readonly name: string
+  readonly time: string
+}> = [
+  { name: 'Morning', time: '07:30' },
+  { name: 'Midday', time: '12:00' },
+  { name: 'Evening', time: '18:00' },
+  { name: 'Night', time: '21:30' },
+  { name: 'After shower', time: '' },
+  { name: 'Before bed', time: '22:30' },
+]
+
+/** Includes every preset time so a preset always shows as selected. */
+export const ROUTINE_TIME_OPTIONS: ReadonlyArray<string> = [
+  '',
+  '07:30',
+  '08:00',
+  '12:00',
+  '18:00',
+  '21:30',
+  '22:30',
+]
+
 export const routineDraftFromRoutine = (routine: Routine): RoutineDraft => ({
   maybeRoutineId: Option.some(routine.id),
   name: routine.name,
