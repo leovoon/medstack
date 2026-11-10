@@ -7,6 +7,7 @@ import {
   Dose,
   ImportSnapshot,
   Page,
+  PlanImportPreview,
   Product,
   ProductDraft,
   Routine,
@@ -34,6 +35,11 @@ export const Model = Schema.Struct({
   confirmDialog: Dialog.Model,
   stepPickerDialog: Dialog.Model,
   maybeToast: Schema.Option(Schema.String),
+  planStage: Schema.Literals(['ask', 'paste']),
+  planMedicine: Schema.String,
+  planLabel: Schema.String,
+  planPaste: Schema.String,
+  maybePlanImport: Schema.Option(PlanImportPreview),
 })
 export type Model = typeof Model.Type
 
@@ -65,4 +71,9 @@ export const baseModel = (): Model => ({
   confirmDialog: Dialog.init({ id: 'confirm-dialog' }),
   stepPickerDialog: Dialog.init({ id: 'step-picker-dialog' }),
   maybeToast: Option.none(),
+  planStage: 'ask',
+  planMedicine: '',
+  planLabel: '',
+  planPaste: '',
+  maybePlanImport: Option.none(),
 })

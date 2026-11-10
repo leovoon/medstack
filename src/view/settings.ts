@@ -106,6 +106,19 @@ export const settingsView = (model: Model, h: HtmlBuilder<Message>): Html =>
               h.button(
                 [
                   h.Class(secondaryButtonClassName),
+                  h.OnClick(Message.ClickedGetPlan()),
+                ],
+                ['Get a plan from ChatGPT'],
+              ),
+              h.p(
+                [h.Class(helperTextClassName)],
+                [
+                  'Copies a prompt you can paste into ChatGPT, then brings its answer back in as products and routines.',
+                ],
+              ),
+              h.button(
+                [
+                  h.Class(secondaryButtonClassName),
                   h.OnClick(Message.ClickedExport()),
                 ],
                 ['Export data'],

@@ -223,6 +223,7 @@ describe('view', () => {
       page: Page.ProductEditor({ productId: Option.none() }),
       maybeProductDraft: Option.some({
         maybeProductId: Option.none(),
+        wizardStep: 6,
         name: '',
         strength: '',
         kind: 'Cream' as const,
@@ -345,6 +346,60 @@ describe('view', () => {
       { update, view },
       given(model),
       expect(text(/In progress/)).toBeAbsent(),
+    )
+  })
+
+  test('the product wizard asks one question per screen', () => {
+    const model = modelWith({
+      page: Page.ProductEditor({ productId: Option.none() }),
+      maybeProductDraft: Option.some({
+        maybeProductId: Option.none(),
+        wizardStep: 0,
+        name: '',
+        strength: '',
+        kind: 'Cream' as const,
+        amount: '',
+        area: '',
+        note: '',
+        defaultWaitMinutes: 20,
+        asNeeded: false,
+      }),
+    })
+    scene(
+      { update, view },
+      given(model),
+      expect(text('What is it?')).toExist(),
+      expect(text('Step 1 of 7')).toExist(),
+      expect(text('What kind is it?')).toBeAbsent(),
+      expect(text('How much goes on?')).toBeAbsent(),
+    )
+  })
+
+  test('the plan screen offers a prompt to copy and a paste step', () => {
+    const model = modelWith({
+      page: Page.Plan(),
+      planStage: 'ask',
+      planMedicine: 'Clobetasol',
+    })
+    scene(
+      { update, view },
+      given(model),
+      expect(role('button', { name: 'Copy the prompt' })).toExist(),
+      expect(text('Open ChatGPT')).toExist(),
+      expect(role('button', { name: 'I have the answer' })).toExist(),
+    )
+  })
+
+  test('the plan paste step accepts the answer', () => {
+    const model = modelWith({
+      page: Page.Plan(),
+      planStage: 'paste',
+    })
+    scene(
+      { update, view },
+      given(model),
+      expect(text('The answer')).toExist(),
+      expect(role('button', { name: 'Import the plan' })).toExist(),
     )
   })
 

@@ -374,6 +374,23 @@ export const routineEditorView = (
                       )}`,
                     ],
                   ),
+                  ...(Option.isNone(routine.reviewedAtMs)
+                    ? [
+                        h.button(
+                          [
+                            h.Class(
+                              'mt-2 h-12 px-4 rounded-lg border border-[var(--ms-border)] text-sm text-[var(--ms-text)] cursor-pointer',
+                            ),
+                            h.OnClick(
+                              Message.ClickedMarkRoutineReviewed({
+                                routineId: routine.id,
+                              }),
+                            ),
+                          ],
+                          ['I checked this'],
+                        ),
+                      ]
+                    : []),
                 ],
               }),
 

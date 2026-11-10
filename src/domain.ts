@@ -123,6 +123,7 @@ export const Page = defineTaggedUnion({
   ProductEditor: { productId: Schema.Option(Schema.String) },
   History: {},
   Settings: {},
+  Plan: {},
 })
 export type Page = typeof Page.Type
 
@@ -130,6 +131,7 @@ export const ConfirmKind = defineTaggedUnion({
   DeleteRoutine: { routineId: Schema.String },
   DeleteProduct: { productId: Schema.String },
   ImportReplace: {},
+  PlanImport: {},
   ClearHistory: {},
   DeleteEverything: {},
 })
@@ -144,6 +146,7 @@ export type ImportSnapshot = typeof ImportSnapshot.Type
 
 export const ProductDraft = Schema.Struct({
   maybeProductId: Schema.Option(Schema.String),
+  wizardStep: Schema.Number,
   name: Schema.String,
   strength: Schema.String,
   kind: ProductKind,
@@ -586,6 +589,7 @@ const appendToRoutineSection = (
 
 export const productDraftFromProduct = (product: Product): ProductDraft => ({
   maybeProductId: Option.some(product.id),
+  wizardStep: 0,
   name: product.name,
   strength: product.strength,
   kind: product.kind,
@@ -600,6 +604,7 @@ export const emptyProductDraft = (
   defaultWaitMinutes: number,
 ): ProductDraft => ({
   maybeProductId: Option.none(),
+  wizardStep: 0,
   name: '',
   strength: '',
   kind: 'Cream',
@@ -722,3 +727,303 @@ export const updateStepWait = (
   Array.map(steps, (step, i) =>
     i === index ? { ...step, waitMinutes: sanitizeMinutes(waitMinutes) } : step,
   )
+
+// PLAN (ChatGPT round-trip)
+
+export const PLAN_SCHEMA = 'medstack.plan/1'
+
+export const PlanProduct = Schema.Struct({
+  name: Schema.String,
+  strength: Schema.optionalKey(Schema.String),
+  form: Schema.optionalKey(Schema.String),
+  amount: Schema.optionalKey(Schema.String),
+  site: Schema.optionalKey(Schema.String),
+  note: Schema.optionalKey(Schema.String),
+  waitMinutes: Schema.optionalKey(Schema.Number),
+  asNeeded: Schema.optionalKey(Schema.Boolean),
+})
+export type PlanProduct = typeof PlanProduct.Type
+
+export const PlanStep = Schema.Struct({
+  productName: Schema.String,
+  waitMinutes: Schema.optionalKey(Schema.Number),
+})
+export type PlanStep = typeof PlanStep.Type
+
+export const PlanRoutine = Schema.Struct({
+  name: Schema.String,
+  time: Schema.optionalKey(Schema.String),
+  detail: Schema.optionalKey(Schema.String),
+  steps: Schema.Array(PlanStep),
+})
+export type PlanRoutine = typeof PlanRoutine.Type
+
+export const PRODUCT_WIZARD_LAST_STEP = 6
+
+export const Plan = Schema.Struct({
+  schema: Schema.Literal(PLAN_SCHEMA),
+  createdAt: Schema.optionalKey(Schema.String),
+  products: Schema.Array(PlanProduct),
+  routines: Schema.Array(PlanRoutine),
+  pharmacistQuestions: Schema.optionalKey(Schema.Array(Schema.String)),
+})
+export type Plan = typeof Plan.Type
+
+const PlanJsonString = Schema.fromJsonString(Schema.toCodecJson(Plan))
+
+const JSON_FENCE = /```(?:json)?\r?\n?([\s\S]*?)```/
+
+const sliceBraces = (text: string): Option.Option<string> => {
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start === -1 || end <= start) {
+    return Option.none()
+  }
+  return Option.some(text.slice(start, end + 1))
+}
+
+export const planFromText = (text: string): Option.Option<Plan> => {
+  const fenced = JSON_FENCE.exec(text)
+  const maybeJson =
+    fenced !== null && fenced[1] !== undefined && fenced[1].trim() !== ''
+      ? Option.some(fenced[1].trim())
+      : sliceBraces(text)
+  return Option.flatMap(maybeJson, json =>
+    Schema.decodeOption(PlanJsonString)(json),
+  )
+}
+
+export const kindFromForm = (form: string): ProductKind => {
+  const value = form.trim().toLowerCase()
+  if (value === 'cream') {
+    return 'Cream'
+  }
+  if (value === 'ointment') {
+    return 'Ointment'
+  }
+  if (value === 'gel') {
+    return 'Gel'
+  }
+  if (value === 'lotion') {
+    return 'Lotion'
+  }
+  if (value === 'drops' || value === 'solution') {
+    return 'Drops'
+  }
+  if (value === 'spray' || value === 'foam') {
+    return 'Spray'
+  }
+  if (value === 'tablet') {
+    return 'Tablet'
+  }
+  if (value === 'capsule') {
+    return 'Capsule'
+  }
+  if (value === 'syrup') {
+    return 'Syrup'
+  }
+  return 'Other'
+}
+
+export const planPrompt = (medicine: string, labelText: string): string =>
+  [
+    'You are filling in a routine tracker for one person. Do not diagnose and do not change any dose.',
+    '',
+    'Patient input',
+    `Medicine: ${medicine === '' ? '(not given)' : medicine}`,
+    'Label or instructions, copied exactly:',
+    labelText === '' ? '(not given)' : labelText,
+    '',
+    'Rules',
+    '1. Use only what is on the label or in the instructions above. If something is missing, leave it out and add the question to pharmacistQuestions. Never guess a dose, a strength, or a wait.',
+    '2. One product per entry. Never put two products in one step.',
+    '3. Only give a wait when the label or the instructions say one. Otherwise use 0.',
+    '4. Order steps only where the order matters (same skin, same moment). Do not invent an order.',
+    '5. Output exactly one ```json block and nothing else. No prose before or after it.',
+    '',
+    `Shape (schema ${PLAN_SCHEMA}):`,
+    '{',
+    `  "schema": "${PLAN_SCHEMA}",`,
+    '  "createdAt": "2026-11-10T21:00:00Z",',
+    '  "products": [',
+    '    { "name": "Clobetasol propionate", "strength": "0.05%", "form": "cream",',
+    '      "amount": "thin layer", "site": "inner elbows", "note": "not on the face",',
+    '      "waitMinutes": 20, "asNeeded": false }',
+    '  ],',
+    '  "routines": [',
+    '    { "name": "Night", "time": "21:30", "detail": "on an empty stomach",',
+    '      "steps": [ { "productName": "Clobetasol propionate", "waitMinutes": 20 } ] }',
+    '  ],',
+    '  "pharmacistQuestions": ["How long should the steroid stay on?"]',
+    '}',
+    '',
+    'form is one of: cream, ointment, gel, lotion, drops, spray, tablet, capsule, syrup, other.',
+    'time is 24h HH:MM, or leave it out for "any time".',
+    'waitMinutes is a whole number from 0 to 240.',
+  ].join('\n')
+
+export const PlanImportPreview = Schema.Struct({
+  products: Schema.Array(Product),
+  routines: Schema.Array(Routine),
+  questions: Schema.Array(Schema.String),
+})
+export type PlanImport = typeof PlanImportPreview.Type
+
+const planOrigin = (plan: Plan, capturedAtMs: number): Origin => {
+  const title =
+    plan.createdAt !== undefined && plan.createdAt !== ''
+      ? `Plan from ${plan.createdAt.slice(0, 10)}`
+      : 'Plan from ChatGPT'
+  return Origin.Plan({
+    planId: plan.createdAt ?? 'plan',
+    planTitle: title,
+    modelLabel: 'chatgpt',
+    capturedAtMs,
+  })
+}
+
+const routineTimeFromPlan = (
+  time: string | undefined,
+): Option.Option<string> =>
+  time !== undefined && /^([01]\d|2[0-3]):[0-5]\d$/.test(time)
+    ? Option.some(time)
+    : Option.none()
+
+export const planImportFromPlan = (
+  plan: Plan,
+  makeId: () => string,
+  capturedAtMs: number,
+): PlanImport => {
+  const origin = planOrigin(plan, capturedAtMs)
+  const products = Array.map(plan.products, entry => {
+    const waitMinutes = sanitizeMinutes(entry.waitMinutes ?? 0)
+    const asNeeded = entry.asNeeded === true
+    return {
+      id: makeId(),
+      name: entry.name.trim(),
+      strength: (entry.strength ?? '').trim(),
+      kind: kindFromForm(entry.form ?? ''),
+      amount: (entry.amount ?? '').trim(),
+      area: (entry.site ?? '').trim(),
+      note: (entry.note ?? '').trim(),
+      defaultWaitMinutes: asNeeded ? 0 : waitMinutes,
+      asNeeded,
+      origin,
+    }
+  })
+
+  const idByName = Array.reduce(
+    products,
+    new Map<string, string>(),
+    (index, product) => {
+      const key = product.name.toLowerCase()
+      if (!index.has(key)) {
+        index.set(key, product.id)
+      }
+      return index
+    },
+  )
+
+  const routines = Array.flatMap(plan.routines, entry => {
+    const name = entry.name.trim()
+    const steps = Array.flatMap(entry.steps, step => {
+      const productId = idByName.get(step.productName.trim().toLowerCase())
+      return productId === undefined
+        ? []
+        : [{ productId, waitMinutes: sanitizeMinutes(step.waitMinutes ?? 0) }]
+    })
+    if (name === '' || steps.length === 0) {
+      return []
+    }
+    return [
+      {
+        id: makeId(),
+        name,
+        scheduledTime: routineTimeFromPlan(entry.time),
+        isPaused: false,
+        steps,
+        origin,
+        detail: (entry.detail ?? '').slice(0, 120),
+        reviewedAtMs: Option.none(),
+      },
+    ]
+  })
+
+  return {
+    products,
+    routines,
+    questions: Array.map(plan.pharmacistQuestions ?? [], question =>
+      question.trim(),
+    ),
+  }
+}
+
+export type PlanMerge = {
+  readonly products: ReadonlyArray<Product>
+  readonly routines: ReadonlyArray<Routine>
+  readonly addedProducts: number
+  readonly addedRoutines: number
+}
+
+export const mergePlanImport = (
+  products: ReadonlyArray<Product>,
+  routines: ReadonlyArray<Routine>,
+  imported: PlanImport,
+): PlanMerge => {
+  const existingByName = Array.reduce(
+    products,
+    new Map<string, Product>(),
+    (index, product) => {
+      const key = product.name.trim().toLowerCase()
+      if (!index.has(key)) {
+        index.set(key, product)
+      }
+      return index
+    },
+  )
+  const idRemap = Array.reduce(
+    imported.products,
+    new Map<string, string>(),
+    (index, product) => {
+      const existing = existingByName.get(product.name.trim().toLowerCase())
+      index.set(product.id, existing === undefined ? product.id : existing.id)
+      return index
+    },
+  )
+  const newProducts = Array.filter(
+    imported.products,
+    product => !existingByName.has(product.name.trim().toLowerCase()),
+  )
+  const existingRoutineNames = Array.reduce(
+    routines,
+    new Set<string>(),
+    (names, routine) => {
+      names.add(routine.name.trim().toLowerCase())
+      return names
+    },
+  )
+  const newRoutines = Array.filter(
+    imported.routines,
+    routine =>
+      routine.steps.length > 0 &&
+      !existingRoutineNames.has(routine.name.trim().toLowerCase()),
+  ).map(routine => ({
+    ...routine,
+    steps: Array.flatMap(routine.steps, step => {
+      const productId = idRemap.get(step.productId)
+      return productId === undefined ? [] : [{ ...step, productId }]
+    }),
+  }))
+
+  return {
+    products: [...products, ...newProducts],
+    routines: [
+      ...routines,
+      ...Array.filter(newRoutines, routine => routine.steps.length > 0),
+    ],
+    addedProducts: newProducts.length,
+    addedRoutines: Array.length(
+      Array.filter(newRoutines, routine => routine.steps.length > 0),
+    ),
+  }
+}

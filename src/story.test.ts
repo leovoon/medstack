@@ -5,6 +5,7 @@ import { describe, expect, test } from 'vitest'
 import {
   ApplyStep,
   ConfirmKind,
+  CopyPlanPrompt,
   DEFAULT_SETTINGS,
   DecodeImport,
   GenerateProductId,
@@ -25,6 +26,10 @@ import {
   StoredSavedStateJsonString,
   baseModel,
   hydrateSavedState,
+  mergePlanImport,
+  planFromText,
+  planImportFromPlan,
+  planPrompt,
   update,
   verb,
 } from './main'
@@ -33,6 +38,12 @@ const modelWith = (patch: Partial<Model> = {}): Model => ({
   ...baseModel(),
   ...patch,
 })
+
+const draftStep = (m: Model): number =>
+  Option.getOrElse(
+    Option.map(m.maybeProductDraft, draft => draft.wizardStep),
+    () => -1,
+  )
 
 const draftSteps = (
   m: Model,
@@ -116,6 +127,7 @@ const dose = (id: string, over: Record<string, unknown> = {}) => ({
 
 const productDraft = (over: Record<string, unknown> = {}) => ({
   maybeProductId: Option.none(),
+  wizardStep: 0,
   name: '',
   strength: '',
   kind: 'Cream' as const,
@@ -1053,6 +1065,236 @@ describe('update', () => {
         model(next => {
           expect(next.todayKey).toBe('2024-01-02')
           expect(Option.isSome(next.activeRun)).toBe(true)
+        }),
+      )
+    })
+  })
+
+  describe('product wizard', () => {
+    test('asks one question at a time and advances on Next', () => {
+      story(
+        update,
+        given(modelWith({ maybeProductDraft: Option.some(productDraft()) })),
+        message(Message.ClickedProductNext()),
+        model(next => {
+          expect(draftStep(next)).toBe(1)
+        }),
+        message(Message.ClickedProductBack()),
+        model(next => {
+          expect(draftStep(next)).toBe(0)
+        }),
+      )
+    })
+
+    test('picking a kind moves to the amount question', () => {
+      story(
+        update,
+        given(
+          modelWith({
+            maybeProductDraft: Option.some(productDraft({ wizardStep: 1 })),
+          }),
+        ),
+        message(Message.SelectedProductKind({ kind: 'Ointment' })),
+        model(next => {
+          expect(draftStep(next)).toBe(2)
+          expect(next.maybeProductDraft).toStrictEqual(
+            Option.some(
+              expect.objectContaining({ kind: 'Ointment', wizardStep: 2 }),
+            ),
+          )
+        }),
+      )
+    })
+
+    test('the wizard stops back at the first step', () => {
+      story(
+        update,
+        given(modelWith({ maybeProductDraft: Option.some(productDraft()) })),
+        message(Message.ClickedProductBack()),
+        model(next => {
+          expect(draftStep(next)).toBe(0)
+        }),
+      )
+    })
+  })
+
+  describe('plan round-trip', () => {
+    const planText = [
+      'Here is the plan you asked for:',
+      '```json',
+      JSON.stringify({
+        schema: 'medstack.plan/1',
+        createdAt: '2026-11-10T13:00:00Z',
+        products: [
+          {
+            name: 'Clobetasol propionate',
+            strength: '0.05%',
+            form: 'cream',
+            amount: 'thin layer',
+            site: 'inner elbows',
+            waitMinutes: 20,
+          },
+          { name: 'Emollient', form: 'ointment', asNeeded: true },
+        ],
+        routines: [
+          {
+            name: 'Night',
+            time: '21:30',
+            detail: 'thin layer first',
+            steps: [
+              { productName: 'Clobetasol propionate', waitMinutes: 20 },
+              { productName: 'Emollient', waitMinutes: 0 },
+            ],
+          },
+          {
+            name: 'Unknown product routine',
+            steps: [{ productName: 'Not in the plan', waitMinutes: 0 }],
+          },
+        ],
+        pharmacistQuestions: ['How long should the steroid stay on?'],
+      }),
+      '```',
+      'Ask your pharmacist about the wait.',
+    ].join('\n')
+
+    test('the prompt carries the schema and the patient input', () => {
+      const prompt = planPrompt('Clobetasol cream', 'Apply twice a day.')
+      expect(prompt).toContain('medstack.plan/1')
+      expect(prompt).toContain('Clobetasol cream')
+      expect(prompt).toContain('Apply twice a day.')
+      expect(prompt).toContain('Never guess')
+      expect(prompt).toContain('pharmacistQuestions')
+    })
+
+    test('copying the prompt emits the clipboard command', () => {
+      story(
+        update,
+        given(modelWith({ planMedicine: 'Clobetasol' })),
+        message(Message.ClickedCopyPlanPrompt()),
+        Command.expectExact(CopyPlanPrompt),
+        Command.resolve(CopyPlanPrompt, Message.CompletedCopyPlanPrompt()),
+        model(next => {
+          expect(next.maybeToast).toStrictEqual(
+            Option.some('Prompt copied. Paste it into ChatGPT.'),
+          )
+        }),
+      )
+    })
+
+    test('a fenced plan parses and maps to products and routines', () => {
+      const maybePlan = planFromText(planText)
+      expect(Option.isSome(maybePlan)).toBe(true)
+      const plan = Option.getOrElse(maybePlan, () => {
+        throw new Error('expected a parsed plan')
+      })
+      let counter = 0
+      const imported = planImportFromPlan(
+        plan,
+        () => {
+          counter = counter + 1
+          return `id-${counter}`
+        },
+        5000,
+      )
+      expect(imported.products.length).toBe(2)
+      expect(imported.products[0]?.kind).toBe('Cream')
+      expect(imported.products[0]?.defaultWaitMinutes).toBe(20)
+      expect(imported.products[1]?.asNeeded).toBe(true)
+      expect(imported.products[1]?.defaultWaitMinutes).toBe(0)
+      expect(imported.routines.length).toBe(1)
+      expect(imported.routines[0]?.scheduledTime).toStrictEqual(
+        Option.some('21:30'),
+      )
+      expect(imported.routines[0]?.steps[0]?.productId).toBe(
+        imported.products[0]?.id,
+      )
+      expect(imported.routines[0]?.origin._tag).toBe('Plan')
+      expect(imported.questions).toStrictEqual([
+        'How long should the steroid stay on?',
+      ])
+    })
+
+    test('prose without a plan is rejected', () => {
+      expect(Option.isNone(planFromText('Sure! Here are some tips.'))).toBe(
+        true,
+      )
+      expect(
+        Option.isNone(planFromText('```json\n{ "schema": "other/1" }\n```')),
+      ).toBe(true)
+    })
+
+    test('merging keeps existing products and skips a routine already there', () => {
+      let counter = 0
+      const imported = planImportFromPlan(
+        Option.getOrElse(planFromText(planText), () => {
+          throw new Error('expected a parsed plan')
+        }),
+        () => {
+          counter = counter + 1
+          return `new-${counter}`
+        },
+        5000,
+      )
+      const existing = product('p1', { name: 'Clobetasol propionate' })
+      const merged = mergePlanImport(
+        [existing],
+        [
+          routine('r1', {
+            name: 'Night',
+            steps: [{ productId: 'p1', waitMinutes: 20 }],
+          }),
+        ],
+        imported,
+      )
+      expect(merged.addedProducts).toBe(1)
+      expect(merged.addedRoutines).toBe(0)
+      expect(merged.products[0]?.id).toBe('p1')
+    })
+
+    test('a decoded plan opens the confirm and merges on confirm', () => {
+      let counter = 0
+      const imported = planImportFromPlan(
+        Option.getOrElse(planFromText(planText), () => {
+          throw new Error('expected a parsed plan')
+        }),
+        () => {
+          counter = counter + 1
+          return `new-${counter}`
+        },
+        5000,
+      )
+      story(
+        update,
+        given(modelWith()),
+        message(Message.SucceededImportPlan(imported)),
+        model(next => {
+          expect(confirmTag(next)).toBe('PlanImport')
+          expect(Option.isSome(next.maybePlanImport)).toBe(true)
+        }),
+        message(Message.ConfirmedPlanImport()),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.products.length).toBe(2)
+          expect(next.routines.length).toBe(1)
+          expect(next.page._tag).toBe('Today')
+          expect(Option.isNone(next.maybePlanImport)).toBe(true)
+        }),
+      )
+    })
+
+    test('a malformed paste shows a toast and changes nothing', () => {
+      story(
+        update,
+        given(modelWith()),
+        message(
+          Message.FailedImportPlan({ message: 'That is not a medstack plan.' }),
+        ),
+        model(next => {
+          expect(next.maybeToast).toStrictEqual(
+            Option.some('That is not a medstack plan.'),
+          )
+          expect(next.products).toStrictEqual([])
         }),
       )
     })

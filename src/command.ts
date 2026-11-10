@@ -1,4 +1,4 @@
-import { Clock, Effect, Schema } from 'effect'
+import { Array, Clock, Effect, Option, Schema } from 'effect'
 import { SecureRandom } from 'effect/crypto'
 import { KeyValueStore } from 'effect/persistence'
 import { Command } from 'foldkit'
@@ -11,6 +11,8 @@ import {
   StoredSavedStateJsonString,
   dayKeyFromDate,
   hydrateSavedState,
+  planFromText,
+  planImportFromPlan,
 } from './domain'
 import { Message } from './message'
 import { STORAGE_KEY, SavedStateJsonString } from './storage'
@@ -209,4 +211,62 @@ export const RequestWakeLock = Command.define('RequestWakeLock', {
     }
     return Message.CompletedRequestWakeLock()
   }),
+})
+
+export const CopyPlanPrompt = Command.define('CopyPlanPrompt', {
+  args: { text: Schema.String },
+  messages: [Message.CompletedCopyPlanPrompt, Message.FailedCopyPlanPrompt],
+  execute: ({ text }) =>
+    Effect.tryPromise({
+      try: () => navigator.clipboard.writeText(text),
+      catch: () => new Error('clipboard unavailable'),
+    }).pipe(
+      Effect.map(() => Message.CompletedCopyPlanPrompt()),
+      Effect.catch(() => Effect.succeed(Message.FailedCopyPlanPrompt())),
+    ),
+})
+
+export const ImportPlan = Command.define('ImportPlan', {
+  args: { text: Schema.String },
+  messages: [Message.SucceededImportPlan, Message.FailedImportPlan],
+  execute: ({ text }) =>
+    Effect.gen(function* () {
+      const maybePlan = planFromText(text)
+      if (Option.isNone(maybePlan)) {
+        return Message.FailedImportPlan({
+          message:
+            'That is not a medstack plan. Ask ChatGPT to send only the json block.',
+        })
+      }
+      const plan = maybePlan.value
+      const nowMs = yield* Clock.currentTimeMillis
+      const idCount = plan.products.length + plan.routines.length
+      const ids = yield* Effect.forEach(
+        Array.makeBy(idCount, () => 0),
+        () => generateUuid(),
+      )
+      let cursor = 0
+      const makeId = (): string => {
+        const id = ids[cursor]
+        cursor = cursor + 1
+        return id ?? ''
+      }
+      const imported = planImportFromPlan(plan, makeId, nowMs)
+      if (imported.products.length === 0) {
+        return Message.FailedImportPlan({
+          message: 'The plan had no products in it.',
+        })
+      }
+      return Message.SucceededImportPlan(imported)
+    }),
+})
+
+export const MarkRoutineReviewed = Command.define('MarkRoutineReviewed', {
+  args: { routineId: Schema.String },
+  messages: [Message.CompletedMarkRoutineReviewed],
+  execute: ({ routineId }) =>
+    Effect.gen(function* () {
+      const atMs = yield* Clock.currentTimeMillis
+      return Message.CompletedMarkRoutineReviewed({ routineId, atMs })
+    }),
 })

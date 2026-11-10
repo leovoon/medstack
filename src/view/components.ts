@@ -253,6 +253,82 @@ export const confirmDialogView = (
                   },
                   h,
                 ),
+              PlanImport: () => {
+                const imported = Option.getOrElse(
+                  model.maybePlanImport,
+                  () => ({
+                    products: [],
+                    routines: [],
+                    questions: [],
+                  }),
+                )
+                return [
+                  h.h2(
+                    [
+                      ...render.title,
+                      h.Class(
+                        'text-lg font-semibold text-[var(--ms-text)] mb-2',
+                      ),
+                    ],
+                    ['Import this plan?'],
+                  ),
+                  h.p(
+                    [
+                      ...render.description,
+                      h.Class('text-sm text-[var(--ms-text-2)] mb-3'),
+                    ],
+                    [
+                      `${imported.products.length} products and ${imported.routines.length} routines will be added to what you already have.`,
+                    ],
+                  ),
+                  ...(imported.questions.length > 0
+                    ? [
+                        h.p(
+                          [h.Class('text-sm text-[var(--ms-text)] mb-1')],
+                          ['Ask your pharmacist'],
+                        ),
+                        h.ul(
+                          [h.Class('mb-4')],
+                          Array.map(
+                            Array.take(imported.questions, 5),
+                            question =>
+                              h.li(
+                                [
+                                  h.Class(
+                                    'text-sm text-[var(--ms-text-2)] mb-1',
+                                  ),
+                                ],
+                                [`· ${question}`],
+                              ),
+                          ),
+                        ),
+                      ]
+                    : []),
+                  h.div(
+                    [h.Class('flex gap-3 justify-end')],
+                    [
+                      h.button(
+                        [
+                          ...render.closeButton,
+                          h.Class(
+                            'h-12 px-4 rounded-lg border border-[var(--ms-border)] text-[var(--ms-text)] text-base cursor-pointer',
+                          ),
+                        ],
+                        ['Cancel'],
+                      ),
+                      h.button(
+                        [
+                          h.Class(
+                            'h-12 px-4 rounded-lg bg-[var(--ms-accent)] text-[#1a120a] font-semibold text-base cursor-pointer',
+                          ),
+                          h.OnClick(Message.ConfirmedPlanImport()),
+                        ],
+                        ['Import'],
+                      ),
+                    ],
+                  ),
+                ]
+              },
               ClearHistory: () =>
                 confirmContent(
                   render,

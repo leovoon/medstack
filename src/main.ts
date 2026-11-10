@@ -8,11 +8,14 @@ export { subscriptions } from './subscriptions'
 export { view } from './view'
 export {
   ApplyStep,
+  CopyPlanPrompt,
   DecodeImport,
   ExportState,
   GenerateProductId,
   GenerateRoutineId,
+  ImportPlan,
   LogAsNeeded,
+  MarkRoutineReviewed,
   PlayWaitEndSound,
   ReadClock,
   ReadDayKey,

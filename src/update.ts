@@ -6,11 +6,14 @@ import { Dialog } from '@foldkit/ui'
 
 import {
   ApplyStep,
+  CopyPlanPrompt,
   DecodeImport,
   ExportState,
   GenerateProductId,
   GenerateRoutineId,
+  ImportPlan,
   LogAsNeeded,
+  MarkRoutineReviewed,
   PlayWaitEndSound,
   ReadClock,
   ReadDayKey,
@@ -25,6 +28,7 @@ import {
   ConfirmKind,
   EMPTY_SAVED,
   Origin,
+  PRODUCT_WIZARD_LAST_STEP,
   Page,
   type ProductDraft,
   type RoutineDraft,
@@ -33,7 +37,9 @@ import {
   buildRun,
   emptyProductDraft,
   emptyRoutineDraft,
+  mergePlanImport,
   moveStep,
+  planPrompt,
   productById,
   productDraftErrors,
   productDraftFromProduct,
@@ -173,6 +179,11 @@ const baseWithSaved = (saved: SavedState): Model => {
     confirmDialog: Dialog.init({ id: 'confirm-dialog' }),
     stepPickerDialog: Dialog.init({ id: 'step-picker-dialog' }),
     maybeToast: Option.none(),
+    planStage: 'ask' as const,
+    planMedicine: '',
+    planLabel: '',
+    planPaste: '',
+    maybePlanImport: Option.none(),
   }
   return Page.match(base.page, {
     Today: () => base,
@@ -207,6 +218,7 @@ const baseWithSaved = (saved: SavedState): Model => {
       }),
     History: () => base,
     Settings: () => base,
+    Plan: () => base,
   })
 }
 
@@ -237,6 +249,7 @@ export const update = (model: Model, message: Message) =>
           ),
         History: () => ({ model }),
         Settings: () => ({ model }),
+        Plan: () => ({ model }),
       }),
 
     ClickedNewProduct: () => {
@@ -276,12 +289,39 @@ export const update = (model: Model, message: Message) =>
         defaultWaitMinutes: sanitizeMinutes(minutes),
       })),
     SelectedProductKind: ({ kind }) =>
-      updateProductDraft(model, draft => ({ ...draft, kind })),
+      updateProductDraft(model, draft => ({
+        ...draft,
+        kind,
+        wizardStep: draft.wizardStep === 1 ? 2 : draft.wizardStep,
+      })),
+    SelectedProductAmount: ({ value }) =>
+      updateProductDraft(model, draft => ({
+        ...draft,
+        amount: value,
+        wizardStep: draft.wizardStep === 2 ? 3 : draft.wizardStep,
+      })),
+    SelectedProductWait: ({ minutes }) =>
+      updateProductDraft(model, draft => ({
+        ...draft,
+        defaultWaitMinutes: sanitizeMinutes(minutes),
+        wizardStep: draft.wizardStep === 4 ? 5 : draft.wizardStep,
+      })),
+    ClickedProductNext: () =>
+      updateProductDraft(model, draft => ({
+        ...draft,
+        wizardStep: Math.min(PRODUCT_WIZARD_LAST_STEP, draft.wizardStep + 1),
+      })),
+    ClickedProductBack: () =>
+      updateProductDraft(model, draft => ({
+        ...draft,
+        wizardStep: Math.max(0, draft.wizardStep - 1),
+      })),
     ToggledProductAsNeeded: ({ isChecked }) =>
       updateProductDraft(model, draft => ({
         ...draft,
         asNeeded: isChecked,
         defaultWaitMinutes: isChecked ? 0 : draft.defaultWaitMinutes,
+        wizardStep: draft.wizardStep === 5 ? 6 : draft.wizardStep,
       })),
     SubmittedProduct: () =>
       Option.match(model.maybeProductDraft, {
@@ -873,6 +913,93 @@ export const update = (model: Model, message: Message) =>
         maybeImportSnapshot: () => Option.none(),
       })
       return save(next)
+    },
+
+    ClickedGetPlan: () =>
+      navigate(
+        modifyFields(model, {
+          planStage: () => 'ask' as const,
+          maybePlanImport: () => Option.none(),
+        }),
+        Page.Plan(),
+      ),
+    UpdatedPlanMedicine: ({ value }) => ({
+      model: modifyFields(model, { planMedicine: () => value }),
+    }),
+    UpdatedPlanLabel: ({ value }) => ({
+      model: modifyFields(model, { planLabel: () => value }),
+    }),
+    UpdatedPlanPaste: ({ value }) => ({
+      model: modifyFields(model, { planPaste: () => value }),
+    }),
+    ClickedCopyPlanPrompt: () => ({
+      model,
+      commands: [
+        CopyPlanPrompt({
+          text: planPrompt(model.planMedicine, model.planLabel),
+        }),
+      ],
+    }),
+    CompletedCopyPlanPrompt: () => ({
+      model: setToast(model, 'Prompt copied. Paste it into ChatGPT.'),
+    }),
+    FailedCopyPlanPrompt: () => ({
+      model: setToast(
+        model,
+        'Could not copy. Select the prompt below and copy it by hand.',
+      ),
+    }),
+    ClickedPlanPasteStep: () => ({
+      model: modifyFields(model, { planStage: () => 'paste' as const }),
+    }),
+    ClickedPlanAskStep: () => ({
+      model: modifyFields(model, { planStage: () => 'ask' as const }),
+    }),
+    SubmittedPlanImport: () => {
+      if (model.planPaste.trim() === '') {
+        return { model }
+      }
+      return { model, commands: [ImportPlan({ text: model.planPaste })] }
+    },
+    SucceededImportPlan: ({ products, routines, questions }) => ({
+      model: modifyFields(openConfirm(model, ConfirmKind.PlanImport()), {
+        maybePlanImport: () => Option.some({ products, routines, questions }),
+      }),
+    }),
+    FailedImportPlan: ({ message }) => ({ model: setToast(model, message) }),
+    ConfirmedPlanImport: () =>
+      Option.match(model.maybePlanImport, {
+        onNone: () => ({ model: closeConfirm(model) }),
+        onSome: imported => {
+          const merged = mergePlanImport(
+            model.products,
+            model.routines,
+            imported,
+          )
+          const next = modifyFields(closeConfirm(model), {
+            products: () => merged.products,
+            routines: () => merged.routines,
+            maybePlanImport: () => Option.none(),
+            page: () => Page.Today(),
+            maybeToast: () =>
+              Option.some(
+                `Imported ${merged.addedProducts} products and ${merged.addedRoutines} routines.`,
+              ),
+          })
+          return save(next)
+        },
+      }),
+    ClickedMarkRoutineReviewed: ({ routineId }) => ({
+      model,
+      commands: [MarkRoutineReviewed({ routineId })],
+    }),
+    CompletedMarkRoutineReviewed: ({ routineId, atMs }) => {
+      const routines = Array.map(model.routines, routine =>
+        routine.id === routineId
+          ? { ...routine, reviewedAtMs: Option.some(atMs) }
+          : routine,
+      )
+      return save(modifyFields(model, { routines: () => routines }))
     },
 
     SucceededSaveState: () => ({ model }),

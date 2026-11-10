@@ -20,6 +20,8 @@ export const Message = defineMessageUnion({
   // product editor
   ClickedNewProduct: {},
   ClickedEditProduct: { productId: Schema.String },
+  ClickedProductNext: {},
+  ClickedProductBack: {},
   UpdatedProductName: { value: Schema.String },
   UpdatedProductStrength: { value: Schema.String },
   UpdatedProductAmount: { value: Schema.String },
@@ -27,6 +29,8 @@ export const Message = defineMessageUnion({
   UpdatedProductNote: { value: Schema.String },
   UpdatedProductDefaultWait: { minutes: Schema.Number },
   SelectedProductKind: { kind: ProductKind },
+  SelectedProductAmount: { value: Schema.String },
+  SelectedProductWait: { minutes: Schema.Number },
   ToggledProductAsNeeded: { isChecked: Schema.Boolean },
   SubmittedProduct: {},
   CompletedGenerateProductId: { id: Schema.String },
@@ -95,6 +99,30 @@ export const Message = defineMessageUnion({
   },
   FailedDecodeImport: {},
   ConfirmedImport: {},
+
+  // plan (ChatGPT round-trip)
+  ClickedGetPlan: {},
+  UpdatedPlanMedicine: { value: Schema.String },
+  UpdatedPlanLabel: { value: Schema.String },
+  ClickedCopyPlanPrompt: {},
+  CompletedCopyPlanPrompt: {},
+  FailedCopyPlanPrompt: {},
+  ClickedPlanPasteStep: {},
+  ClickedPlanAskStep: {},
+  UpdatedPlanPaste: { value: Schema.String },
+  SubmittedPlanImport: {},
+  SucceededImportPlan: {
+    products: Schema.Array(Product),
+    routines: Schema.Array(Routine),
+    questions: Schema.Array(Schema.String),
+  },
+  FailedImportPlan: { message: Schema.String },
+  ConfirmedPlanImport: {},
+  ClickedMarkRoutineReviewed: { routineId: Schema.String },
+  CompletedMarkRoutineReviewed: {
+    routineId: Schema.String,
+    atMs: Schema.Number,
+  },
 
   // history / data
   ClickedToggleHistoryDay: { dayKey: Schema.String },

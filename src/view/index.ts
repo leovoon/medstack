@@ -5,6 +5,7 @@ import { Message } from '../message'
 import type { Model } from '../model'
 import { shell } from './components'
 import { historyView } from './history'
+import { planView } from './plan'
 import { productEditorView } from './productEditor'
 import { productsView } from './products'
 import { routineEditorView } from './routineEditor'
@@ -23,6 +24,7 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
     ProductEditor: () => productEditorView(model, h),
     History: () => historyView(model, h),
     Settings: () => settingsView(model, h),
+    Plan: () => planView(model, h),
   })
 
   return {

@@ -158,7 +158,7 @@ Single `localStorage` key `medstack:v1`, value = JSON string of:
 ## 3. Screens
 
 `Page` is a tagged union: `Today`, `Run`, `Routines`, `RoutineEditor({routineId})`,
-`Products`, `ProductEditor({productId})`, `History`, `Settings`. No router, no URL — this is
+`Products`, `ProductEditor({productId})`, `History`, `Settings`, `Plan`. No router, no URL — this is
 a single-user appliance. Persist `page`.
 
 Bottom bar (hidden while on `Run`): **Today · Routines · Products · History** with icons and
@@ -231,15 +231,55 @@ Buttons: `New routine`. Row taps → editor. Empty state explains sequence + wai
 
 List grouped by kind, showing name · strength, area, wait. `New product` button.
 
-### 3.6 Product editor
+### 3.6 Product editor — a wizard, one question per screen
 
-Fields in this order: name, strength, kind (Select or segmented radio group), amount, area,
-note, `Wait after applying` (number + "min", help text *"Time before the next product goes on.
-0 means none."*), `Only as needed` (Switch; when on, the wait row dims and is forced to 0).
-Save/Cancel inline errors: `Name is required`, `Wait must be 0–240 minutes`.
-Delete (existing products only) via `Dialog`: **"Delete Clobetasol propionate? It is in 1
-routine. Past doses are kept."** — deleting removes the product from any routine steps, and
-a routine that ends up with 0 steps is kept but flagged `Needs a step` and hidden from Today.
+Written for an older user reading in a dim room. The same seven steps run for every product,
+new or edited; nothing is a single wall of fields.
+
+| Step | Question | Control | Advances by |
+| --- | --- | --- | --- |
+| 1 | What is it? | name (required) + strength (optional) | `Next`, disabled while the name is blank |
+| 2 | What kind is it? | 2-column kind chips | tapping a chip |
+| 3 | How much goes on? | amount chips + free text | tapping a chip, or `Next` |
+| 4 | Where does it go? | free text, optional | `Next` (skipping is allowed) |
+| 5 | Wait before the next one? | `0/5/10/15/20/30/60` chips + minutes input | tapping a chip, or `Next` |
+| 6 | Is it part of a routine? | two big buttons | tapping either |
+| 7 | Check it over | fact list + note + errors | `Add product` / `Save changes` |
+
+- Header shows `Step 3 of 7` and a thin progress line. Every step has `Back`, except step 1
+  which has `Cancel` (nothing is saved).
+- Validation appears on step 7, next to the save button: `Name is required`,
+  `Wait must be 0–240 minutes`. The save button is disabled while an error stands.
+- `Only when I need it` forces the wait to 0, as before.
+- Delete (existing products only) sits on step 7, below save, via `Dialog`: **"Delete
+  Clobetasol propionate? It is in 1 routine. Past doses are kept."** — deleting removes the
+  product from any routine steps, and a routine that ends up with 0 steps is kept but flagged
+  `Needs a step` and hidden from Today.
+
+### 3.9 Get a plan (ChatGPT round-trip, no network)
+
+Reached from the Today setup panel and from Settings. The app never calls a network; the user
+moves the text.
+
+- **Ask:** two inputs (`What did the doctor give you?`, `Copy what the label says`) and a
+  `Copy the prompt` button that puts a self-contained prompt on the clipboard. The prompt
+  carries the patient input, the `medstack.plan/1` shape, and the hard rules: use only the
+  label, mark gaps as questions, never guess a dose or a wait, output one ```json block.
+- `Open ChatGPT` opens `https://chatgpt.com/?q=<prompt>` in a new tab. A collapsed
+  `Show the prompt` block holds the same text for hand-copying when the clipboard is blocked.
+- **Paste:** `I have the answer` swaps to a paste box. `Import the plan` decodes the first
+  ```json block (or the outermost `{…}`) against the plan schema; surrounding prose is
+  ignored. A failure shows one plain toast and changes nothing.
+- **Confirm:** the dialog names the counts (`3 products and 2 routines will be added`), lists
+  up to five `Ask your pharmacist` questions from the plan, and only then merges.
+- **Merge, never replace:** products are matched by name (case-insensitive); an existing
+  product keeps its own details and its id, and plan steps are remapped onto it. Routines
+  whose name already exists are skipped. Imported products and routines carry
+  `origin: Plan{planId, planTitle, modelLabel, capturedAtMs}`.
+- A plan routine's editor shows `from plan · checked <date>`; until the user taps
+  `I checked this` it reads `not checked yet` and the tap stores `reviewedAtMs`.
+- Imported routines are ordinary routines: editable, pausable, deletable, and their doses are
+  ordinary doses.
 
 ### 3.7 History
 
