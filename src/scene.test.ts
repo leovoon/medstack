@@ -1,176 +1,342 @@
-import {
-  Command,
-  click,
-  expect,
-  given,
-  label,
-  role,
-  scene,
-  submit,
-  text,
-  type,
-} from 'foldkit/scene'
-import { modifyFields } from 'foldkit/struct'
+import { Option } from 'effect'
+import { expect, given, role, scene, text } from 'foldkit/scene'
 import { describe, test } from 'vitest'
 
 import {
-  EditingState,
-  GenerateTodo,
-  Message,
   type Model,
-  SaveTodos,
+  Origin,
+  Page,
+  baseModel,
   update,
   view,
 } from './main'
 
-const emptyModel: Model = {
-  todos: [],
-  newTodoText: '',
-  filter: 'All',
-  editing: EditingState.NotEditing(),
-}
+const modelWith = (patch: Partial<Model>): Model => ({
+  ...baseModel(),
+  ...patch,
+})
 
-const modelWithTodos: Model = modifyFields(emptyModel, {
-  todos: () => [
-    { id: 'abc', text: 'Buy milk', completed: false, createdAt: 1000 },
-    { id: 'def', text: 'Walk the dog', completed: false, createdAt: 2000 },
-    { id: 'ghi', text: 'Done task', completed: true, createdAt: 3000 },
-  ],
+const product = (id: string, over: Record<string, unknown> = {}) => ({
+  id,
+  name: `P${id}`,
+  strength: '',
+  kind: 'Cream' as const,
+  amount: 'thin layer',
+  area: 'inner elbows',
+  note: '',
+  defaultWaitMinutes: 20,
+  asNeeded: false,
+  origin: Origin.Manual(),
+  ...over,
+})
+
+const routine = (id: string, over: Record<string, unknown> = {}) => ({
+  id,
+  name: `R${id}`,
+  scheduledTime: Option.some('20:00'),
+  isPaused: false,
+  steps: [{ productId: 'a', waitMinutes: 20 }],
+  origin: Origin.Manual(),
+  detail: '',
+  reviewedAtMs: Option.none(),
+  ...over,
+})
+
+const dose = (id: string, over: Record<string, unknown> = {}) => ({
+  id,
+  productId: 'a',
+  routineId: Option.some('r1'),
+  dayKey: '2024-01-01',
+  atMs: 1000,
+  outcome: 'applied' as const,
+  ...over,
+})
+
+const emptyModel = modelWith({ todayKey: '2024-01-01' })
+
+const startedRoutineModel = modelWith({
+  products: [product('a')],
+  routines: [routine('r1')],
+  todayKey: '2024-01-01',
 })
 
 describe('view', () => {
-  test('empty state shows heading and placeholder message', () => {
+  test('empty Today shows the setup panel', () => {
     scene(
       { update, view },
       given(emptyModel),
-      expect(role('heading', { name: 'Todo App' })).toExist(),
-      expect(text('No todos yet. Add one above!')).toExist(),
+      expect(text('Add a product')).toExist(),
+      expect(text('Create a routine')).toExist(),
     )
   })
 
-  test('renders existing todos', () => {
+  test('empty Today explains nothing is logged', () => {
     scene(
       { update, view },
-      given(modelWithTodos),
-      expect(text('Buy milk')).toExist(),
-      expect(text('Walk the dog')).toExist(),
-      expect(text('Done task')).toExist(),
-      expect(role('status')).toContainText('2 active, 1 completed'),
+      given(startedRoutineModel),
+      expect(text('Nothing logged yet')).toExist(),
     )
   })
 
-  test('add a todo through the form', () => {
-    const addedTodo = {
-      id: 'new-1',
-      text: 'Write tests',
-      completed: false,
-      createdAt: 5000,
-    }
-
+  test('a due routine card shows Start', () => {
     scene(
       { update, view },
-      given(emptyModel),
-      type(label('New todo'), 'Write tests'),
-      submit(role('form')),
-      Command.expectExact(GenerateTodo),
-      Command.resolve(
-        GenerateTodo,
-        Message.CompletedGenerateTodo({
-          id: 'new-1',
-          timestamp: 5000,
-          text: 'Write tests',
+      given(startedRoutineModel),
+      expect(role('button', { name: 'Start' })).toExist(),
+    )
+  })
+
+  test('a covered routine card shows Done', () => {
+    const model = modelWith({
+      products: [product('a')],
+      routines: [routine('r1')],
+      doses: [
+        dose('d1', { productId: 'a', routineId: Option.some('r1') }),
+      ],
+      todayKey: '2024-01-01',
+    })
+    scene(
+      { update, view },
+      given(model),
+      expect(text('Done ✓')).toExist(),
+    )
+  })
+
+  test('Run ready shows product name, amount, and the applied verb', () => {
+    const model = modelWith({
+      products: [product('a')],
+      routines: [routine('r1')],
+      activeRun: Option.some({
+        routineId: 'r1',
+        dayKey: '2024-01-01',
+        stepIndex: 0,
+        startedAtMs: 0,
+        waitEndsAtMs: Option.none(),
+      }),
+      page: Page.Run(),
+      todayKey: '2024-01-01',
+      nowMs: 1000,
+    })
+    scene(
+      { update, view },
+      given(model),
+      expect(text('Pa')).toExist(),
+      expect(text('thin layer')).toExist(),
+      expect(role('button', { name: 'Applied' })).toExist(),
+      expect(role('button', { name: 'Skip' })).toExist(),
+    )
+  })
+
+  test('Run waiting shows a countdown, disabled Next, and skip wait', () => {
+    const model = modelWith({
+      products: [product('a'), product('b')],
+      routines: [
+        routine('r1', {
+          steps: [
+            { productId: 'a', waitMinutes: 20 },
+            { productId: 'b', waitMinutes: 0 },
+          ],
         }),
-      ),
-      Command.expectExact(SaveTodos),
-      Command.resolve(
-        SaveTodos,
-        Message.SucceededSaveTodos({ todos: [addedTodo] }),
-      ),
-      expect(text('Write tests')).toExist(),
-      expect(label('New todo')).toHaveValue(''),
+      ],
+      activeRun: Option.some({
+        routineId: 'r1',
+        dayKey: '2024-01-01',
+        stepIndex: 0,
+        startedAtMs: 0,
+        waitEndsAtMs: Option.some(1200000),
+      }),
+      page: Page.Run(),
+      todayKey: '2024-01-01',
+      nowMs: 0,
+    })
+    scene(
+      { update, view },
+      given(model),
+      expect(text('20:00')).toExist(),
+      expect(text('Next: Pb')).toExist(),
+      expect(role('button', { name: 'Skip wait' })).toExist(),
     )
   })
 
-  test('toggle a todo by clicking its checkbox', () => {
-    const toggledTodos = modelWithTodos.todos.map(todo =>
-      todo.id === 'abc' ? modifyFields(todo, { completed: () => true }) : todo,
-    )
-
+  test('Run waiting at zero says Ready', () => {
+    const model = modelWith({
+      products: [product('a'), product('b')],
+      routines: [
+        routine('r1', {
+          steps: [
+            { productId: 'a', waitMinutes: 20 },
+            { productId: 'b', waitMinutes: 0 },
+          ],
+        }),
+      ],
+      activeRun: Option.some({
+        routineId: 'r1',
+        dayKey: '2024-01-01',
+        stepIndex: 0,
+        startedAtMs: 0,
+        waitEndsAtMs: Option.some(100000),
+      }),
+      page: Page.Run(),
+      todayKey: '2024-01-01',
+      nowMs: 100000,
+    })
     scene(
       { update, view },
-      given(modelWithTodos),
-      click(label('Buy milk')),
-      Command.expectExact(SaveTodos),
-      Command.resolve(
-        SaveTodos,
-        Message.SucceededSaveTodos({ todos: toggledTodos }),
-      ),
-      expect(role('status')).toContainText('1 active, 2 completed'),
+      given(model),
+      expect(text('Ready')).toExist(),
+      expect(text('Ready for the next step.')).toExist(),
     )
   })
 
-  test('delete a todo', () => {
-    const remainingTodos = modelWithTodos.todos.filter(({ id }) => id !== 'abc')
-
+  test('Run finished shows the done line and back button', () => {
+    const model = modelWith({
+      products: [product('a')],
+      routines: [routine('r1')],
+      activeRun: Option.some({
+        routineId: 'r1',
+        dayKey: '2024-01-01',
+        stepIndex: 1,
+        startedAtMs: 0,
+        waitEndsAtMs: Option.none(),
+      }),
+      page: Page.Run(),
+      todayKey: '2024-01-01',
+      nowMs: 1000,
+    })
     scene(
       { update, view },
-      given(modelWithTodos),
-      click(role('button', { name: 'Delete Buy milk' })),
-      Command.expectExact(SaveTodos),
-      Command.resolve(
-        SaveTodos,
-        Message.SucceededSaveTodos({ todos: remainingTodos }),
-      ),
-      expect(text('Buy milk')).toBeAbsent(),
-      expect(text('Walk the dog')).toExist(),
+      given(model),
+      expect(text('Done for today')).toExist(),
+      expect(role('button', { name: 'Back to today' })).toExist(),
+      expect(text('Done for today.')).toExist(),
     )
   })
 
-  test('clear completed removes done todos', () => {
-    const activeTodos = modelWithTodos.todos.filter(
-      ({ completed }) => !completed,
-    )
-
+  test('History groups two doses for one day under the Today heading', () => {
+    const model = modelWith({
+      products: [product('a')],
+      routines: [routine('r1')],
+      doses: [
+        dose('d1', { productId: 'a', routineId: Option.some('r1') }),
+        dose('d2', { productId: 'a', routineId: Option.some('r1') }),
+      ],
+      page: Page.History(),
+      todayKey: '2024-01-01',
+    })
     scene(
       { update, view },
-      given(modelWithTodos),
-      click(role('button', { name: 'Clear 1 completed' })),
-      Command.expectExact(SaveTodos),
-      Command.resolve(
-        SaveTodos,
-        Message.SucceededSaveTodos({ todos: activeTodos }),
-      ),
-      expect(text('Done task')).toBeAbsent(),
-      expect(role('status')).toContainText('2 active, 0 completed'),
+      given(model),
+      expect(text('Today')).toExist(),
+      expect(text('Pa')).toExist(),
     )
   })
 
-  test('mark all complete toggles all todos', () => {
-    const allCompletedTodos = modelWithTodos.todos.map(todo =>
-      modifyFields(todo, { completed: () => true }),
-    )
-
+  test('product form shows Name is required inline', () => {
+    const model = modelWith({
+      page: Page.ProductEditor({ productId: Option.none() }),
+      maybeProductDraft: Option.some({
+        maybeProductId: Option.none(),
+        name: '',
+        strength: '',
+        kind: 'Cream' as const,
+        amount: '',
+        area: '',
+        note: '',
+        defaultWaitMinutes: 20,
+        asNeeded: false,
+      }),
+    })
     scene(
       { update, view },
-      given(modelWithTodos),
-      click(role('button', { name: 'Mark all complete' })),
-      Command.expectExact(SaveTodos),
-      Command.resolve(
-        SaveTodos,
-        Message.SucceededSaveTodos({ todos: allCompletedTodos }),
-      ),
-      expect(role('status')).toContainText('0 active, 3 completed'),
+      given(model),
+      expect(text('Name is required')).toExist(),
     )
   })
 
-  test('keeps in-memory changes when saving fails', () => {
+  test('routine editor shows plan origin line only for plan routines', () => {
+    const planRoutine = routine('r1', {
+      origin: Origin.Plan({
+        planId: 'plan1',
+        planTitle: 'Plan',
+        modelLabel: 'claude',
+        capturedAtMs: 5,
+      }),
+      reviewedAtMs: Option.none(),
+    })
+    const model = modelWith({
+      routines: [planRoutine],
+      page: Page.RoutineEditor({ routineId: Option.some('r1') }),
+      maybeRoutineDraft: Option.some({
+        maybeRoutineId: Option.some('r1'),
+        name: 'R1',
+        scheduledTime: Option.some('20:00'),
+        isPaused: false,
+        steps: [{ productId: 'a', waitMinutes: 20 }],
+        detail: '',
+      }),
+    })
     scene(
       { update, view },
-      given(modelWithTodos),
-      click(label('Buy milk')),
-      Command.expectExact(SaveTodos),
-      Command.resolve(SaveTodos, Message.FailedSaveTodos()),
-      expect(role('status')).toContainText('1 active, 2 completed'),
+      given(model),
+      expect(text(/from plan/)).toExist(),
+      expect(text(/not checked yet/)).toExist(),
+    )
+
+    const manualModel = modelWith({
+      routines: [routine('r1')],
+      page: Page.RoutineEditor({ routineId: Option.some('r1') }),
+      maybeRoutineDraft: Option.some({
+        maybeRoutineId: Option.some('r1'),
+        name: 'R1',
+        scheduledTime: Option.some('20:00'),
+        isPaused: false,
+        steps: [{ productId: 'a', waitMinutes: 20 }],
+        detail: '',
+      }),
+    })
+    scene(
+      { update, view },
+      given(manualModel),
+      expect(text(/from plan/)).toBeAbsent(),
+    )
+  })
+
+  test('routine detail renders on the Run screen', () => {
+    const longDetail = 'Take on an empty stomach, 30 min before food. '.repeat(4).trim()
+    const model = modelWith({
+      products: [product('a')],
+      routines: [
+        routine('r1', {
+          steps: [{ productId: 'a', waitMinutes: 20 }],
+          detail: longDetail,
+        }),
+      ],
+      activeRun: Option.some({
+        routineId: 'r1',
+        dayKey: '2024-01-01',
+        stepIndex: 0,
+        startedAtMs: 0,
+        waitEndsAtMs: Option.none(),
+      }),
+      page: Page.Run(),
+      todayKey: '2024-01-01',
+      nowMs: 1000,
+    })
+    scene(
+      { update, view },
+      given(model),
+      expect(text(longDetail)).toExist(),
+    )
+  })
+
+  test('bottom bar shows tabs and marks the active one', () => {
+    scene(
+      { update, view },
+      given(startedRoutineModel),
+      expect(role('button', { name: 'Today' })).toExist(),
+      expect(role('button', { name: 'Routines' })).toExist(),
+      expect(role('button', { name: 'Products' })).toExist(),
+      expect(role('button', { name: 'History' })).toExist(),
     )
   })
 })

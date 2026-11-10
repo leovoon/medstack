@@ -1,1 +1,57 @@
 @import 'tailwindcss';
+
+:root {
+  --ms-bg: #0d1013;
+  --ms-surface: #151a1e;
+  --ms-border: rgba(255, 255, 255, 0.08);
+  --ms-text: #e8eaed;
+  --ms-text-2: #9aa0a6;
+  --ms-accent: #f5b544;
+}
+
+html {
+  background: var(--ms-bg);
+}
+
+body {
+  margin: 0;
+  font-family:
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  color: var(--ms-text);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ms-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,374 +1,1196 @@
-import { Array, Option } from 'effect'
+import { Effect, Option, Schema } from 'effect'
 import { Command, given, message, model, story } from 'foldkit/story'
-import { modifyFields } from 'foldkit/struct'
 import { describe, expect, test } from 'vitest'
 
 import {
-  EditingState,
-  GenerateTodo,
+  ApplyStep,
+  ConfirmKind,
+  DEFAULT_SETTINGS,
+  DecodeImport,
+  GenerateProductId,
+  GenerateRoutineId,
+  LogAsNeeded,
   Message,
   type Model,
-  SaveTodos,
+  Origin,
+  Page,
+  PlayWaitEndSound,
+  ReadClock,
+  ReadDayKey,
+  SaveState,
+  type SavedState,
+  SavedStateJsonString,
+  SkipStep,
+  StartRun,
+  StoredSavedStateJsonString,
+  baseModel,
+  hydrateSavedState,
   update,
+  verb,
 } from './main'
 
-const emptyModel: Model = {
-  todos: [],
-  newTodoText: '',
-  filter: 'All',
-  editing: EditingState.NotEditing(),
-}
+const modelWith = (patch: Partial<Model> = {}): Model => ({
+  ...baseModel(),
+  ...patch,
+})
 
-const buyMilk = {
-  id: 'abc',
-  text: 'Buy milk',
-  completed: false,
-  createdAt: 1000,
-}
+const draftSteps = (
+  m: Model,
+): ReadonlyArray<{ readonly productId: string; readonly waitMinutes: number }> =>
+  Option.match(m.maybeRoutineDraft, {
+    onNone: () => [],
+    onSome: draft => draft.steps,
+  })
 
-const walkDog = {
-  id: 'def',
-  text: 'Walk the dog',
-  completed: false,
-  createdAt: 2000,
-}
+const runStepIndex = (m: Model): number =>
+  Option.getOrElse(Option.map(m.activeRun, run => run.stepIndex), () => -1)
 
-const doneTask = {
-  id: 'ghi',
-  text: 'Done task',
-  completed: true,
-  createdAt: 3000,
-}
+const runDayKey = (m: Model): string =>
+  Option.getOrElse(Option.map(m.activeRun, run => run.dayKey), () => '')
 
-const modelWithTodos: Model = modifyFields(emptyModel, {
-  todos: () => [buyMilk, walkDog, doneTask],
+const runWaitEnds = (m: Model): Option.Option<number> =>
+  Option.getOrElse(
+    Option.map(m.activeRun, run => run.waitEndsAtMs),
+    () => Option.none(),
+  )
+
+const importFirstProductId = (m: Model): string =>
+  Option.getOrElse(
+    Option.map(m.maybeImportSnapshot, snapshot => snapshot.products[0]?.id ?? ''),
+    () => '',
+  )
+
+const confirmTag = (m: Model): string =>
+  Option.getOrElse(
+    Option.map(m.maybeConfirm, confirm => confirm._tag),
+    () => '',
+  )
+
+const product = (id: string, over: Record<string, unknown> = {}) => ({
+  id,
+  name: `P${id}`,
+  strength: '',
+  kind: 'Cream' as const,
+  amount: 'thin layer',
+  area: '',
+  note: '',
+  defaultWaitMinutes: 20,
+  asNeeded: false,
+  origin: Origin.Manual(),
+  ...over,
+})
+
+const routine = (id: string, over: Record<string, unknown> = {}) => ({
+  id,
+  name: `R${id}`,
+  scheduledTime: Option.none(),
+  isPaused: false,
+  steps: [],
+  origin: Origin.Manual(),
+  detail: '',
+  reviewedAtMs: Option.none(),
+  ...over,
+})
+
+const dose = (id: string, over: Record<string, unknown> = {}) => ({
+  id,
+  productId: 'a',
+  routineId: Option.some('r1'),
+  dayKey: '2024-01-01',
+  atMs: 1000,
+  outcome: 'applied' as const,
+  ...over,
+})
+
+const productDraft = (over: Record<string, unknown> = {}) => ({
+  maybeProductId: Option.none(),
+  name: '',
+  strength: '',
+  kind: 'Cream' as const,
+  amount: '',
+  area: '',
+  note: '',
+  defaultWaitMinutes: 20,
+  asNeeded: false,
+  ...over,
+})
+
+const routineDraft = (over: Record<string, unknown> = {}) => ({
+  maybeRoutineId: Option.none(),
+  name: '',
+  scheduledTime: Option.none(),
+  isPaused: false,
+  steps: [],
+  detail: '',
+  ...over,
 })
 
 describe('update', () => {
-  describe('add todo', () => {
-    test('AddedTodo with text produces a GenerateTodo Command', () => {
+  describe('products', () => {
+    test('adds a new product and saves it', () => {
+      const inputModel = modelWith({
+        page: Page.ProductEditor({ productId: Option.none() }),
+        maybeProductDraft: Option.some(productDraft({ name: 'Clobetasol' })),
+      })
       story(
         update,
-        given(modifyFields(emptyModel, { newTodoText: () => 'Buy milk' })),
-        message(Message.AddedTodo()),
-        Command.expectHas(GenerateTodo),
+        given(inputModel),
+        message(Message.SubmittedProduct()),
+        Command.expectHas(GenerateProductId),
         Command.resolve(
-          GenerateTodo,
-          Message.CompletedGenerateTodo({
-            id: 'abc',
-            timestamp: 1000,
-            text: 'Buy milk',
+          GenerateProductId,
+          Message.CompletedGenerateProductId({ id: 'p1' }),
+        ),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.products).toHaveLength(1)
+          expect(next.products[0]?.name).toBe('Clobetasol')
+          expect(next.products[0]?.origin).toStrictEqual(Origin.Manual())
+          expect(next.page).toStrictEqual(Page.Products())
+        }),
+      )
+    })
+
+    test('rejects empty name without saving', () => {
+      const inputModel = modelWith({
+        maybeProductDraft: Option.some(productDraft()),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.SubmittedProduct()),
+        Command.expectNone(),
+        model(next => {
+          expect(next.products).toHaveLength(0)
+        }),
+      )
+    })
+
+    test('rejects wait out of range without saving', () => {
+      const inputModel = modelWith({
+        maybeProductDraft: Option.some(
+          productDraft({ name: 'A', defaultWaitMinutes: 300 }),
+        ),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.SubmittedProduct()),
+        Command.expectNone(),
+      )
+    })
+
+    test('editing preserves an imported origin', () => {
+      const planProduct = product('p1', {
+        origin: Origin.Plan({
+          planId: 'plan1',
+          planTitle: 'Plan',
+          modelLabel: 'claude',
+          capturedAtMs: 5,
+        }),
+      })
+      const inputModel = modelWith({ products: [planProduct] })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedEditProduct({ productId: 'p1' })),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        message(Message.UpdatedProductName({ value: 'Renamed' })),
+        message(Message.SubmittedProduct()),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          const updated = next.products[0]!
+          expect(updated.name).toBe('Renamed')
+          expect(updated.origin).toStrictEqual(planProduct.origin)
+        }),
+      )
+    })
+
+    test('deleting a product removes it from routine steps and drops a run on it', () => {
+      const routineWithStep = routine('r1', {
+        steps: [{ productId: 'p1', waitMinutes: 20 }],
+      })
+      const inputModel = modelWith({
+        products: [product('p1')],
+        routines: [routineWithStep],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.none(),
+        }),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ConfirmedDeleteProduct({ productId: 'p1' })),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.products).toHaveLength(0)
+          expect(next.routines[0]?.steps).toHaveLength(0)
+          expect(next.activeRun).toStrictEqual(Option.none())
+        }),
+      )
+    })
+  })
+
+  describe('routines', () => {
+    test('creates a routine with steps and saves', () => {
+      const inputModel = modelWith({
+        products: [product('p1')],
+        page: Page.RoutineEditor({ routineId: Option.none() }),
+        maybeRoutineDraft: Option.some(
+          routineDraft({
+            name: 'Night',
+            steps: [{ productId: 'p1', waitMinutes: 20 }],
           }),
         ),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.SubmittedRoutine()),
+        Command.expectHas(GenerateRoutineId),
         Command.resolve(
-          SaveTodos,
-          Message.SucceededSaveTodos({
-            todos: [
-              {
-                id: 'abc',
-                text: 'Buy milk',
-                completed: false,
-                createdAt: 1000,
-              },
+          GenerateRoutineId,
+          Message.CompletedGenerateRoutineId({ id: 'r1' }),
+        ),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.routines).toHaveLength(1)
+          expect(next.routines[0]?.origin).toStrictEqual(Origin.Manual())
+          expect(next.routines[0]?.detail).toBe('')
+          expect(next.routines[0]?.reviewedAtMs).toStrictEqual(Option.none())
+        }),
+      )
+    })
+
+    test('rejects a routine with no name', () => {
+      const inputModel = modelWith({
+        maybeRoutineDraft: Option.some(routineDraft()),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.SubmittedRoutine()),
+        Command.expectNone(),
+      )
+    })
+
+    test('rejects a routine with no steps', () => {
+      const inputModel = modelWith({
+        maybeRoutineDraft: Option.some(routineDraft({ name: 'Night' })),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.SubmittedRoutine()),
+        Command.expectNone(),
+      )
+    })
+
+    test('move up is a no-op on the first step', () => {
+      const inputModel = modelWith({
+        maybeRoutineDraft: Option.some(
+          routineDraft({
+            steps: [
+              { productId: 'a', waitMinutes: 1 },
+              { productId: 'b', waitMinutes: 2 },
             ],
           }),
         ),
-        model(model => {
-          expect(model.todos).toHaveLength(1)
-          expect(model.todos[0]?.text).toBe('Buy milk')
-          expect(model.todos[0]?.completed).toBe(false)
-          expect(model.newTodoText).toBe('')
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedMoveStepUp({ stepIndex: 0 })),
+        Command.expectNone(),
+        model(next => {
+          const steps = draftSteps(next)
+          expect(steps[0]?.productId).toBe('a')
         }),
       )
     })
 
-    test('AddedTodo with empty text is ignored', () => {
+    test('move up swaps with the previous step', () => {
+      const inputModel = modelWith({
+        maybeRoutineDraft: Option.some(
+          routineDraft({
+            steps: [
+              { productId: 'a', waitMinutes: 1 },
+              { productId: 'b', waitMinutes: 2 },
+            ],
+          }),
+        ),
+      })
       story(
         update,
-        given(modifyFields(emptyModel, { newTodoText: () => '' })),
-        message(Message.AddedTodo()),
+        given(inputModel),
+        message(Message.ClickedMoveStepUp({ stepIndex: 1 })),
+        Command.expectNone(),
+        model(next => {
+          const steps = draftSteps(next)
+          expect(steps[0]?.productId).toBe('b')
+          expect(steps[1]?.productId).toBe('a')
+        }),
+      )
+    })
+
+    test('move down is a no-op on the last step', () => {
+      const inputModel = modelWith({
+        maybeRoutineDraft: Option.some(
+          routineDraft({
+            steps: [
+              { productId: 'a', waitMinutes: 1 },
+              { productId: 'b', waitMinutes: 2 },
+            ],
+          }),
+        ),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedMoveStepDown({ stepIndex: 1 })),
         Command.expectNone(),
       )
     })
 
-    test('AddedTodo with whitespace-only text is ignored', () => {
+    test('removes a step', () => {
+      const inputModel = modelWith({
+        maybeRoutineDraft: Option.some(
+          routineDraft({
+            steps: [
+              { productId: 'a', waitMinutes: 1 },
+              { productId: 'b', waitMinutes: 2 },
+            ],
+          }),
+        ),
+      })
       story(
         update,
-        given(modifyFields(emptyModel, { newTodoText: () => '   ' })),
-        message(Message.AddedTodo()),
+        given(inputModel),
+        message(Message.ClickedRemoveStep({ stepIndex: 0 })),
+        Command.expectNone(),
+        model(next => {
+          expect(draftSteps(next)).toHaveLength(1)
+        }),
+      )
+    })
+
+    test('add step uses product default wait and closes the picker', () => {
+      const inputModel = modelWith({
+        products: [product('p1', { defaultWaitMinutes: 5 })],
+        maybeRoutineDraft: Option.some(routineDraft()),
+        stepPickerDialog: {
+          ...baseModel().stepPickerDialog,
+          isOpen: true,
+        },
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.SelectedStepProduct({ productId: 'p1' })),
+        Command.expectNone(),
+        model(next => {
+          expect(draftSteps(next)).toStrictEqual([
+            { productId: 'p1', waitMinutes: 5 },
+          ])
+          expect(next.stepPickerDialog.isOpen).toBe(false)
+        }),
+      )
+    })
+
+    test('sanitizes step wait to 0–240', () => {
+      const inputModel = modelWith({
+        maybeRoutineDraft: Option.some(
+          routineDraft({
+            steps: [{ productId: 'a', waitMinutes: 1 }],
+          }),
+        ),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.UpdatedStepWait({ stepIndex: 0, minutes: 999 })),
+        Command.expectNone(),
+        model(next => {
+          expect(draftSteps(next)[0]?.waitMinutes).toBe(240)
+        }),
+      )
+    })
+
+    test('reset step wait restores product default', () => {
+      const inputModel = modelWith({
+        products: [product('p1', { defaultWaitMinutes: 20 })],
+        maybeRoutineDraft: Option.some(
+          routineDraft({
+            steps: [{ productId: 'p1', waitMinutes: 2 }],
+          }),
+        ),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedResetStepWait({ stepIndex: 0 })),
+        Command.expectNone(),
+        model(next => {
+          expect(draftSteps(next)[0]?.waitMinutes).toBe(20)
+        }),
+      )
+    })
+
+    test('deleting a routine drops its active run and keeps doses', () => {
+      const inputModel = modelWith({
+        routines: [routine('r1')],
+        doses: [dose('d1')],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.none(),
+        }),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ConfirmedDeleteRoutine({ routineId: 'r1' })),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.routines).toHaveLength(0)
+          expect(next.activeRun).toStrictEqual(Option.none())
+          expect(next.doses).toHaveLength(1)
+        }),
+      )
+    })
+  })
+
+  describe('run', () => {
+    const twoStepRoutine = routine('r1', {
+      steps: [
+        { productId: 'p1', waitMinutes: 20 },
+        { productId: 'p2', waitMinutes: 0 },
+      ],
+    })
+
+    test('starting resumes at the first uncovered step', () => {
+      const inputModel = modelWith({
+        products: [product('p1'), product('p2')],
+        routines: [twoStepRoutine],
+        doses: [
+          dose('d1', {
+            productId: 'p1',
+            routineId: Option.some('r1'),
+            dayKey: '2024-01-01',
+          }),
+        ],
+        todayKey: '2024-01-01',
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedStartRoutine({ routineId: 'r1' })),
+        Command.expectExact(StartRun),
+        Command.resolve(
+          StartRun,
+          Message.CompletedStartRun({ routineId: 'r1', nowMs: 5000 }),
+        ),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(runStepIndex(next)).toBe(1)
+          expect(runDayKey(next)).toBe('2024-01-01')
+          expect(next.page).toStrictEqual(Page.Run())
+        }),
+      )
+    })
+
+    test('starting an already-covered routine opens finished', () => {
+      const inputModel = modelWith({
+        products: [product('p1'), product('p2')],
+        routines: [twoStepRoutine],
+        doses: [
+          dose('d1', {
+            productId: 'p1',
+            routineId: Option.some('r1'),
+            dayKey: '2024-01-01',
+          }),
+          dose('d2', {
+            productId: 'p2',
+            routineId: Option.some('r1'),
+            dayKey: '2024-01-01',
+          }),
+        ],
+        todayKey: '2024-01-01',
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedStartRoutine({ routineId: 'r1' })),
+        Command.resolve(
+          StartRun,
+          Message.CompletedStartRun({ routineId: 'r1', nowMs: 5000 }),
+        ),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(runStepIndex(next)).toBe(2)
+        }),
+      )
+    })
+
+    test('apply step with a wait sets waitEndsAtMs and keeps the step', () => {
+      const inputModel = modelWith({
+        products: [product('p1'), product('p2')],
+        routines: [twoStepRoutine],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.none(),
+        }),
+        todayKey: '2024-01-01',
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedApplyStep()),
+        Command.expectExact(ApplyStep),
+        Command.resolve(
+          ApplyStep,
+          Message.CompletedApplyStep({ doseId: 'd1', atMs: 100000 }),
+        ),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.doses).toHaveLength(1)
+          expect(next.doses[0]?.outcome).toBe('applied')
+          expect(next.doses[0]?.routineId).toStrictEqual(Option.some('r1'))
+          expect(runStepIndex(next)).toBe(0)
+          expect(runWaitEnds(next)).toStrictEqual(
+            Option.some(100000 + 20 * 60000),
+          )
+        }),
+      )
+    })
+
+    test('apply step with a zero wait advances immediately', () => {
+      const zeroWaitRoutine = routine('r1', {
+        steps: [
+          { productId: 'p1', waitMinutes: 0 },
+          { productId: 'p2', waitMinutes: 0 },
+        ],
+      })
+      const inputModel = modelWith({
+        products: [product('p1'), product('p2')],
+        routines: [zeroWaitRoutine],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.none(),
+        }),
+        todayKey: '2024-01-01',
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedApplyStep()),
+        Command.resolve(
+          ApplyStep,
+          Message.CompletedApplyStep({ doseId: 'd1', atMs: 1000 }),
+        ),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(runStepIndex(next)).toBe(1)
+          expect(runWaitEnds(next)).toStrictEqual(Option.none())
+        }),
+      )
+    })
+
+    test('applying the last step finishes the run', () => {
+      const inputModel = modelWith({
+        products: [product('p1')],
+        routines: [
+          routine('r1', {
+            steps: [{ productId: 'p1', waitMinutes: 20 }],
+          }),
+        ],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.none(),
+        }),
+        todayKey: '2024-01-01',
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedApplyStep()),
+        Command.resolve(
+          ApplyStep,
+          Message.CompletedApplyStep({ doseId: 'd1', atMs: 1000 }),
+        ),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(runStepIndex(next)).toBe(1)
+          expect(runWaitEnds(next)).toStrictEqual(Option.none())
+        }),
+      )
+    })
+
+    test('skip dose logs a skipped dose and advances without a wait', () => {
+      const inputModel = modelWith({
+        products: [product('p1'), product('p2')],
+        routines: [twoStepRoutine],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.none(),
+        }),
+        todayKey: '2024-01-01',
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedSkipStep()),
+        Command.expectExact(SkipStep),
+        Command.resolve(
+          SkipStep,
+          Message.CompletedSkipStep({ doseId: 'd1', atMs: 1000 }),
+        ),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.doses[0]?.outcome).toBe('skipped')
+          expect(runStepIndex(next)).toBe(1)
+          expect(runWaitEnds(next)).toStrictEqual(Option.none())
+        }),
+      )
+    })
+
+    test('skip wait advances to the next step', () => {
+      const inputModel = modelWith({
+        products: [product('p1'), product('p2')],
+        routines: [twoStepRoutine],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.some(100000),
+        }),
+        todayKey: '2024-01-01',
+        nowMs: 50000,
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedSkipWait()),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(runStepIndex(next)).toBe(1)
+          expect(runWaitEnds(next)).toStrictEqual(Option.none())
+        }),
+      )
+    })
+
+    test('next is ignored before zero', () => {
+      const inputModel = modelWith({
+        products: [product('p1'), product('p2')],
+        routines: [twoStepRoutine],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.some(100000),
+        }),
+        todayKey: '2024-01-01',
+        nowMs: 50000,
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedNext()),
+        Command.expectNone(),
+        model(next => {
+          expect(runStepIndex(next)).toBe(0)
+        }),
+      )
+    })
+
+    test('next advances once zero is reached', () => {
+      const inputModel = modelWith({
+        products: [product('p1'), product('p2')],
+        routines: [twoStepRoutine],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.some(100000),
+        }),
+        todayKey: '2024-01-01',
+        nowMs: 100000,
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ClickedNext()),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(runStepIndex(next)).toBe(1)
+        }),
+      )
+    })
+
+    test('tick before zero refreshes the clock without saving or advancing', () => {
+      const inputModel = modelWith({
+        products: [product('p1'), product('p2')],
+        routines: [twoStepRoutine],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.some(100000),
+        }),
+        todayKey: '2024-01-01',
+        nowMs: 50000,
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.Ticked()),
+        Command.expectExact(ReadClock),
+        Command.resolve(ReadClock, Message.CompletedReadClock({ nowMs: 60000 })),
+        Command.expectNone(),
+        model(next => {
+          expect(next.nowMs).toBe(60000)
+          expect(runStepIndex(next)).toBe(0)
+          expect(runWaitEnds(next)).toStrictEqual(
+            Option.some(100000),
+          )
+        }),
+      )
+    })
+
+    test('tick crossing zero emits the wait-end sound when enabled and never saves', () => {
+      const inputModel = modelWith({
+        products: [product('p1'), product('p2')],
+        routines: [twoStepRoutine],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.some(100000),
+        }),
+        settings: { soundOnWaitEnd: true, defaultWaitMinutes: 20 },
+        todayKey: '2024-01-01',
+        nowMs: 50000,
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.Ticked()),
+        Command.resolve(ReadClock, Message.CompletedReadClock({ nowMs: 100000 })),
+        Command.expectHas(PlayWaitEndSound),
+        Command.resolve(
+          PlayWaitEndSound,
+          Message.CompletedPlayWaitEndSound(),
+        ),
+        model(next => {
+          expect(runStepIndex(next)).toBe(0)
+        }),
+      )
+    })
+
+    test('tick crossing zero is silent when sound is disabled', () => {
+      const inputModel = modelWith({
+        products: [product('p1'), product('p2')],
+        routines: [twoStepRoutine],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.some(100000),
+        }),
+        settings: { soundOnWaitEnd: false, defaultWaitMinutes: 20 },
+        todayKey: '2024-01-01',
+        nowMs: 50000,
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.Ticked()),
+        Command.resolve(ReadClock, Message.CompletedReadClock({ nowMs: 100000 })),
         Command.expectNone(),
       )
     })
 
-    test('UpdatedNewTodo updates the input text', () => {
+    test('exiting the run keeps it resumable', () => {
+      const inputModel = modelWith({
+        products: [product('p1'), product('p2')],
+        routines: [twoStepRoutine],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.none(),
+        }),
+        page: Page.Run(),
+        todayKey: '2024-01-01',
+      })
       story(
         update,
-        given(emptyModel),
-        message(Message.UpdatedNewTodo({ text: 'Walk' })),
-        model(model => {
-          expect(model.newTodoText).toBe('Walk')
+        given(inputModel),
+        message(Message.ClickedExitRun()),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.page).toStrictEqual(Page.Today())
+          expect(Option.isSome(next.activeRun)).toBe(true)
         }),
       )
     })
   })
 
-  describe('toggle and delete', () => {
-    test('ToggledTodo flips the completed state', () => {
-      const toggledTodos = modelWithTodos.todos.map(todo =>
-        todo.id === 'abc'
-          ? modifyFields(todo, { completed: () => true })
-          : todo,
-      )
-
-      story(
-        update,
-        given(modelWithTodos),
-        message(Message.ToggledTodo({ id: 'abc' })),
-        Command.resolve(
-          SaveTodos,
-          Message.SucceededSaveTodos({ todos: toggledTodos }),
-        ),
-        model(model => {
-          const todo = Array.findFirst(model.todos, ({ id }) => id === 'abc')
-          expect(Option.map(todo, ({ completed }) => completed)).toStrictEqual(
-            Option.some(true),
-          )
-        }),
-      )
-    })
-
-    test('ToggledTodo on completed todo marks it active', () => {
-      const toggledTodos = modelWithTodos.todos.map(todo =>
-        todo.id === 'ghi'
-          ? modifyFields(todo, { completed: () => false })
-          : todo,
-      )
-
-      story(
-        update,
-        given(modelWithTodos),
-        message(Message.ToggledTodo({ id: 'ghi' })),
-        Command.resolve(
-          SaveTodos,
-          Message.SucceededSaveTodos({ todos: toggledTodos }),
-        ),
-        model(model => {
-          const todo = Array.findFirst(model.todos, ({ id }) => id === 'ghi')
-          expect(Option.map(todo, ({ completed }) => completed)).toStrictEqual(
-            Option.some(false),
-          )
-        }),
-      )
-    })
-
-    test('DeletedTodo removes the todo and saves', () => {
-      const remainingTodos = modelWithTodos.todos.filter(
-        ({ id }) => id !== 'abc',
-      )
-
-      story(
-        update,
-        given(modelWithTodos),
-        message(Message.DeletedTodo({ id: 'abc' })),
-        Command.resolve(
-          SaveTodos,
-          Message.SucceededSaveTodos({ todos: remainingTodos }),
-        ),
-        model(model => {
-          expect(model.todos).toHaveLength(2)
-          expect(
-            Array.findFirst(model.todos, ({ id }) => id === 'abc'),
-          ).toStrictEqual(Option.none())
-        }),
-      )
-    })
-  })
-
-  describe('editing', () => {
-    test('StartedEditing enters editing state with the todo text', () => {
-      story(
-        update,
-        given(modelWithTodos),
-        message(Message.StartedEditing({ id: 'abc' })),
-        model(model => {
-          expect(model.editing).toStrictEqual(
-            EditingState.Editing({ id: 'abc', text: 'Buy milk' }),
-          )
-        }),
-      )
-    })
-
-    test('UpdatedEditingTodo updates the editing text', () => {
-      const editingModel: Model = modifyFields(modelWithTodos, {
-        editing: () => EditingState.Editing({ id: 'abc', text: 'Buy milk' }),
+  describe('as-needed', () => {
+    test('logs an as-needed dose immediately', () => {
+      const inputModel = modelWith({
+        products: [product('p1', { asNeeded: true })],
+        todayKey: '2024-01-01',
       })
-
       story(
         update,
-        given(editingModel),
-        message(Message.UpdatedEditingTodo({ text: 'Buy oat milk' })),
-        model(model => {
-          expect(model.editing).toStrictEqual(
-            EditingState.Editing({ id: 'abc', text: 'Buy oat milk' }),
-          )
-        }),
-      )
-    })
-
-    test('SavedEdit updates the todo text and exits editing', () => {
-      const editingModel: Model = modifyFields(modelWithTodos, {
-        editing: () =>
-          EditingState.Editing({ id: 'abc', text: 'Buy oat milk' }),
-      })
-
-      const editedTodos = modelWithTodos.todos.map(todo =>
-        todo.id === 'abc'
-          ? modifyFields(todo, { text: () => 'Buy oat milk' })
-          : todo,
-      )
-
-      story(
-        update,
-        given(editingModel),
-        message(Message.SavedEdit()),
+        given(inputModel),
+        message(Message.ClickedLogAsNeeded({ productId: 'p1' })),
+        Command.expectExact(LogAsNeeded),
         Command.resolve(
-          SaveTodos,
-          Message.SucceededSaveTodos({ todos: editedTodos }),
+          LogAsNeeded,
+          Message.CompletedLogAsNeeded({
+            productId: 'p1',
+            doseId: 'd1',
+            atMs: 2000,
+          }),
         ),
-        model(model => {
-          const todo = Array.findFirst(model.todos, ({ id }) => id === 'abc')
-          expect(Option.map(todo, ({ text }) => text)).toStrictEqual(
-            Option.some('Buy oat milk'),
-          )
-          expect(model.editing).toStrictEqual(EditingState.NotEditing())
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.doses).toHaveLength(1)
+          expect(next.doses[0]?.routineId).toStrictEqual(Option.none())
+          expect(next.doses[0]?.dayKey).toBe('2024-01-01')
         }),
       )
     })
 
-    test('SavedEdit with empty text exits editing without saving', () => {
-      const editingModel: Model = modifyFields(modelWithTodos, {
-        editing: () => EditingState.Editing({ id: 'abc', text: '   ' }),
+    test('ignores logging for non-as-needed products', () => {
+      const inputModel = modelWith({
+        products: [product('p1', { asNeeded: false })],
       })
-
       story(
         update,
-        given(editingModel),
-        message(Message.SavedEdit()),
-        model(model => {
-          const todo = Array.findFirst(model.todos, ({ id }) => id === 'abc')
-          expect(Option.map(todo, ({ text }) => text)).toStrictEqual(
-            Option.some('Buy milk'),
-          )
-          expect(model.editing).toStrictEqual(EditingState.NotEditing())
-        }),
+        given(inputModel),
+        message(Message.ClickedLogAsNeeded({ productId: 'p1' })),
         Command.expectNone(),
       )
     })
+  })
 
-    test('CancelledEdit exits editing without changes', () => {
-      const editingModel: Model = modifyFields(modelWithTodos, {
-        editing: () =>
-          EditingState.Editing({ id: 'abc', text: 'Changed text' }),
+  describe('import', () => {
+    test('rejects malformed JSON and keeps current data', () => {
+      const inputModel = modelWith({
+        products: [product('p1')],
       })
-
       story(
         update,
-        given(editingModel),
-        message(Message.CancelledEdit()),
-        model(model => {
-          const todo = Array.findFirst(model.todos, ({ id }) => id === 'abc')
-          expect(Option.map(todo, ({ text }) => text)).toStrictEqual(
-            Option.some('Buy milk'),
-          )
-          expect(model.editing).toStrictEqual(EditingState.NotEditing())
+        given(inputModel),
+        message(Message.CompletedReadImportFile({ text: 'not json' })),
+        Command.expectHas(DecodeImport),
+        Command.resolve(DecodeImport, Message.FailedDecodeImport()),
+        Command.expectNone(),
+        model(next => {
+          expect(next.products).toHaveLength(1)
+          expect(next.maybeToast).not.toStrictEqual(Option.none())
+        }),
+      )
+    })
+
+    test('successful decode stages data and opens the confirm dialog', () => {
+      const inputModel = modelWith({ products: [product('p1')] })
+      story(
+        update,
+        given(inputModel),
+        message(Message.CompletedReadImportFile({ text: '{}' })),
+        Command.resolve(
+          DecodeImport,
+          Message.SucceededDecodeImport({
+            products: [product('p9')],
+            routines: [],
+            doses: [],
+          }),
+        ),
+        Command.expectNone(),
+        model(next => {
+          expect(importFirstProductId(next)).toBe('p9')
+          expect(next.confirmDialog.isOpen).toBe(true)
+          expect(confirmTag(next)).toBe('ImportReplace')
+        }),
+      )
+    })
+
+    test('confirming the import replaces data and saves', () => {
+      const inputModel = modelWith({
+        products: [product('p1')],
+        maybeImportSnapshot: Option.some({
+          products: [product('p9')],
+          routines: [],
+          doses: [],
+        }),
+        maybeConfirm: Option.some(ConfirmKind.ImportReplace()),
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ConfirmedImport()),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.products[0]?.id).toBe('p9')
+          expect(next.maybeImportSnapshot).toStrictEqual(Option.none())
         }),
       )
     })
   })
 
-  describe('bulk operations', () => {
-    test('ToggledAll marks all todos completed when some are active', () => {
-      const allCompletedTodos = modelWithTodos.todos.map(todo =>
-        modifyFields(todo, { completed: () => true }),
-      )
-
-      story(
-        update,
-        given(modelWithTodos),
-        message(Message.ToggledAll()),
-        Command.resolve(
-          SaveTodos,
-          Message.SucceededSaveTodos({ todos: allCompletedTodos }),
-        ),
-        model(model => {
-          expect(Array.every(model.todos, ({ completed }) => completed)).toBe(
-            true,
-          )
+  describe('day rollover', () => {
+    test('drops a stale run when the day changes', () => {
+      const inputModel = modelWith({
+        routines: [routine('r1')],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-01',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.none(),
         }),
-      )
-    })
-
-    test('ToggledAll marks all todos active when all are completed', () => {
-      const allCompletedModel: Model = modifyFields(emptyModel, {
-        todos: () =>
-          modelWithTodos.todos.map(todo =>
-            modifyFields(todo, { completed: () => true }),
-          ),
+        todayKey: '2024-01-01',
       })
-
-      const allActiveTodos = allCompletedModel.todos.map(todo =>
-        modifyFields(todo, { completed: () => false }),
-      )
-
       story(
         update,
-        given(allCompletedModel),
-        message(Message.ToggledAll()),
+        given(inputModel),
+        message(Message.CheckedDayKey()),
+        Command.expectExact(ReadDayKey),
         Command.resolve(
-          SaveTodos,
-          Message.SucceededSaveTodos({ todos: allActiveTodos }),
+          ReadDayKey,
+          Message.CompletedReadDayKey({ dayKey: '2024-01-02' }),
         ),
-        model(model => {
-          expect(Array.every(model.todos, ({ completed }) => !completed)).toBe(
-            true,
-          )
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.todayKey).toBe('2024-01-02')
+          expect(next.activeRun).toStrictEqual(Option.none())
         }),
       )
     })
 
-    test('ClearedCompleted removes only completed todos', () => {
-      const activeTodos = modelWithTodos.todos.filter(
-        ({ completed }) => !completed,
-      )
-
+    test('keeps a run that belongs to today', () => {
+      const inputModel = modelWith({
+        routines: [routine('r1')],
+        activeRun: Option.some({
+          routineId: 'r1',
+          dayKey: '2024-01-02',
+          stepIndex: 0,
+          startedAtMs: 0,
+          waitEndsAtMs: Option.none(),
+        }),
+        todayKey: '2024-01-01',
+      })
       story(
         update,
-        given(modelWithTodos),
-        message(Message.ClearedCompleted()),
+        given(inputModel),
+        message(Message.CheckedDayKey()),
         Command.resolve(
-          SaveTodos,
-          Message.SucceededSaveTodos({ todos: activeTodos }),
+          ReadDayKey,
+          Message.CompletedReadDayKey({ dayKey: '2024-01-02' }),
         ),
-        model(model => {
-          expect(model.todos).toHaveLength(2)
-          expect(Array.every(model.todos, ({ completed }) => !completed)).toBe(
-            true,
-          )
+        Command.expectNone(),
+        model(next => {
+          expect(next.todayKey).toBe('2024-01-02')
+          expect(Option.isSome(next.activeRun)).toBe(true)
         }),
       )
     })
   })
 
-  describe('filter', () => {
-    test('SelectedFilter changes the active filter', () => {
+  describe('settings and data', () => {
+    test('toggling sound saves', () => {
+      const inputModel = modelWith()
       story(
         update,
-        given(modelWithTodos),
-        message(Message.SelectedFilter({ filter: 'Active' })),
-        model(model => {
-          expect(model.filter).toBe('Active')
+        given(inputModel),
+        message(Message.ToggledSound({ isChecked: true })),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.settings.soundOnWaitEnd).toBe(true)
         }),
       )
     })
+
+    test('clear history wipes doses only after confirm', () => {
+      const inputModel = modelWith({ doses: [dose('d1')] })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ConfirmedClearHistory()),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.doses).toHaveLength(0)
+          expect(next.products).toHaveLength(0)
+        }),
+      )
+    })
+
+    test('delete everything requires typing delete', () => {
+      const inputModel = modelWith({
+        products: [product('p1')],
+        deleteEverythingText: 'x',
+      })
+      story(
+        update,
+        given(inputModel),
+        message(Message.ConfirmedDeleteEverything()),
+        Command.expectNone(),
+        model(next => {
+          expect(next.products).toHaveLength(1)
+        }),
+      )
+      const ready = modelWith({
+        products: [product('p1')],
+        deleteEverythingText: 'delete',
+      })
+      story(
+        update,
+        given(ready),
+        message(Message.ConfirmedDeleteEverything()),
+        Command.expectExact(SaveState),
+        Command.resolve(SaveState, Message.SucceededSaveState()),
+        model(next => {
+          expect(next.products).toHaveLength(0)
+          expect(next.page).toStrictEqual(Page.Today())
+        }),
+      )
+    })
+  })
+
+  describe('verb', () => {
+    test('applies for topicals and takes for the rest', () => {
+      expect(verb('Cream')).toBe('Apply')
+      expect(verb('Ointment')).toBe('Apply')
+      expect(verb('Spray')).toBe('Apply')
+      expect(verb('Tablet')).toBe('Take')
+      expect(verb('Capsule')).toBe('Take')
+      expect(verb('Syrup')).toBe('Take')
+    })
+  })
+})
+
+describe('persistence round-trips', () => {
+  test('legacy stored JSON decodes with defaults and SaveState encodes them', async () => {
+    const legacyJson = JSON.stringify({
+      version: 1,
+      products: [
+        {
+          id: 'a',
+          name: 'A',
+          strength: '',
+          kind: 'Cream',
+          amount: '',
+          area: '',
+          note: '',
+          defaultWaitMinutes: 20,
+          asNeeded: false,
+        },
+      ],
+      routines: [
+        {
+          id: 'r',
+          name: 'R',
+          scheduledTime: { _tag: 'None' },
+          isPaused: false,
+          steps: [],
+        },
+      ],
+      doses: [],
+      activeRun: { _tag: 'None' },
+      page: { _tag: 'Today' },
+      settings: { soundOnWaitEnd: false, defaultWaitMinutes: 20 },
+    })
+    const decoded = await Effect.runPromise(
+      Schema.decodeEffect(StoredSavedStateJsonString)(legacyJson),
+    )
+    const hydrated = hydrateSavedState(decoded)
+    expect(hydrated.products[0]?.origin).toStrictEqual(Origin.Manual())
+    expect(hydrated.routines[0]?.detail).toBe('')
+    expect(hydrated.routines[0]?.reviewedAtMs).toStrictEqual(Option.none())
+    const encoded = await Effect.runPromise(
+      Schema.encodeEffect(SavedStateJsonString)(hydrated),
+    )
+    const parsed = JSON.parse(encoded)
+    const parsedProducts: ReadonlyArray<Record<string, unknown>> = parsed.products
+    const parsedRoutines: ReadonlyArray<Record<string, unknown>> = parsed.routines
+    expect(parsedProducts[0]).toHaveProperty('origin')
+    expect(parsedRoutines[0]).toHaveProperty('detail')
+    expect(parsedRoutines[0]).toHaveProperty('reviewedAtMs')
+  })
+
+  test('export/import keeps origin and reviewedAtMs', async () => {
+    const planRoutine = routine('r1', {
+      origin: Origin.Plan({
+        planId: 'plan1',
+        planTitle: 'Plan',
+        modelLabel: 'claude',
+        capturedAtMs: 5,
+      }),
+      reviewedAtMs: Option.some(2),
+    })
+    const saved: SavedState = {
+      version: 1,
+      products: [product('a')],
+      routines: [planRoutine],
+      doses: [],
+      activeRun: Option.none(),
+      page: Page.Today(),
+      settings: DEFAULT_SETTINGS,
+    }
+    const encoded = await Effect.runPromise(
+      Schema.encodeEffect(SavedStateJsonString)(saved),
+    )
+    const decoded = hydrateSavedState(
+      await Effect.runPromise(
+        Schema.decodeEffect(StoredSavedStateJsonString)(encoded),
+      ),
+    )
+    expect(decoded.routines[0]?.origin).toStrictEqual(planRoutine.origin)
+    expect(decoded.routines[0]?.reviewedAtMs).toStrictEqual(Option.some(2))
   })
 })
