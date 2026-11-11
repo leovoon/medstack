@@ -53,7 +53,10 @@ export const optionChip = (
     [icon(iconName, h, isCompact ? 'h-4 w-4' : 'h-5 w-5'), h.span([], [label])],
   )
 
-/** Button children: an optional icon, then the label. */
+/**
+ * Button children: an optional icon, then the label. The gap lives here, not on the button
+ * class, so no caller can end up with an icon pressed against its text.
+ */
 export const buttonContent = (
   label: string,
   iconName: IconName | null,
@@ -61,7 +64,12 @@ export const buttonContent = (
 ): ReadonlyArray<Html> =>
   iconName === null
     ? [h.span([], [label])]
-    : [icon(iconName, h), h.span([], [label])]
+    : [
+        h.span(
+          [h.Class('inline-flex items-center gap-2')],
+          [icon(iconName, h), h.span([], [label])],
+        ),
+      ]
 
 export const actionButtonClassName = primaryButtonClassName + ' gap-2'
 

@@ -182,9 +182,14 @@ as a normal page (not a dialog). History is also reachable from a routine card.
   count (`2× today`), and a big `+` button that logs a dose immediately.
 - **Active run** is surfaced as a pinned banner above the routines ("In progress — Night,
   step 2 of 4") that reopens `Run`.
-- First run (no products and no routines): a setup panel, not a blank screen —
-  *"Add what the doctor gave you, in the order you use it, with the wait between each step."*
-  plus two buttons: `Add a product`, `Create a routine`. No demo data, no prescriptions.
+- **Get a plan from ChatGPT** is the main way in, so it is never hidden: a bordered tile with a
+  sparkle icon and the line *"It reads your labels and writes the routines"* sits directly under
+  the header, above the routine cards, on every Today visit. It opens `Get a plan`.
+- First run (no products and no routines): a setup panel, not a blank screen. The primary button
+  is `Get a plan from ChatGPT` with the explanation *"Answer a few questions, paste the prompt
+  into ChatGPT, then paste its answer back here. It fills in the products and the routines."*,
+  then an `or do it by hand` divider and the two secondary buttons `Add a product` and
+  `Create a routine`. No demo data, no prescriptions.
 
 ### 3.2 Run (the point of the app)
 

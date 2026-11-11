@@ -82,7 +82,7 @@ const askStage = (
     ),
     h.button(
       [
-        h.Class(primaryButtonClassName),
+        h.Class(primaryButtonClassName + ' gap-2'),
         h.Disabled(model.planMedicine.trim() === ''),
         h.OnClick(Message.ClickedCopyPlanPrompt()),
       ],
@@ -92,7 +92,7 @@ const askStage = (
       [
         h.Class(
           secondaryButtonClassName +
-            ' mt-3 no-underline text-center flex items-center justify-center',
+            ' mt-3 gap-2 no-underline text-center flex items-center justify-center',
         ),
         h.Href(chatGptLink(prompt)),
         h.Target('_blank'),
@@ -102,7 +102,7 @@ const askStage = (
     ),
     h.button(
       [
-        h.Class(secondaryButtonClassName + ' mt-3'),
+        h.Class(secondaryButtonClassName + ' mt-3 gap-2'),
         h.OnClick(Message.ClickedPlanPasteStep()),
       ],
       buttonContent('I have the answer', 'clipboard', h),
@@ -156,7 +156,7 @@ const pasteStage = (
   ),
   h.button(
     [
-      h.Class(primaryButtonClassName),
+      h.Class(primaryButtonClassName + ' gap-2'),
       h.Disabled(model.planPaste.trim() === ''),
       h.OnClick(Message.SubmittedPlanImport()),
     ],
@@ -164,7 +164,7 @@ const pasteStage = (
   ),
   h.button(
     [
-      h.Class(secondaryButtonClassName + ' mt-3'),
+      h.Class(secondaryButtonClassName + ' mt-3 gap-2'),
       h.OnClick(Message.ClickedPlanAskStep()),
     ],
     buttonContent('Back', 'arrowLeft', h),

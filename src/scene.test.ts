@@ -61,6 +61,15 @@ describe('view', () => {
       given(emptyModel),
       expect(text('Add a product')).toExist(),
       expect(text('Create a routine')).toExist(),
+      expect(role('button', { name: 'Get a plan from ChatGPT' })).toExist(),
+    )
+  })
+
+  test('Today keeps the plan entry visible once routines exist', () => {
+    scene(
+      { update, view },
+      given(startedRoutineModel),
+      expect(role('button', { name: 'Get a plan from ChatGPT' })).toExist(),
     )
   })
 

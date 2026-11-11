@@ -23,6 +23,7 @@ import {
   secondaryButtonClassName,
   timePill,
 } from './components'
+import { icon } from './icons'
 
 const headerLine = (model: Model): string => {
   const hasAnyDoses = Array.some(
@@ -261,29 +262,80 @@ const activeRunBanner = (model: Model, h: HtmlBuilder<Message>): Html =>
     },
   })
 
-const setupPanel = (model: Model, h: HtmlBuilder<Message>): Html =>
-  h.div(
-    [h.Class('mt-10 text-center')],
+/**
+ * The plan round-trip is the feature, so it is the first thing offered: a full tile on Today
+ * whenever the app is still empty, and a quiet entry above the routines after that.
+ */
+const planEntry = (h: HtmlBuilder<Message>): Html =>
+  h.button(
     [
-      h.p(
-        [h.Class(helperTextClassName + ' mb-6 max-w-[300px] mx-auto')],
+      h.Class(
+        'w-full mb-5 rounded-xl border border-[var(--ms-border)] bg-[var(--ms-surface)] px-4 py-3 text-left cursor-pointer flex items-center gap-3',
+      ),
+      h.AriaLabel('Get a plan from ChatGPT'),
+      h.OnClick(Message.ClickedGetPlan()),
+    ],
+    [
+      icon('sparkle', h, 'h-6 w-6 shrink-0 text-[var(--ms-accent)]'),
+      h.span(
+        [h.Class('flex-1 min-w-0')],
         [
-          'Add what the doctor gave you, in the order you use it, with the wait between each step.',
+          h.span(
+            [h.Class('block text-base text-[var(--ms-text)]')],
+            ['Get a plan from ChatGPT'],
+          ),
+          h.span(
+            [h.Class('block text-sm text-[var(--ms-text-2)]')],
+            ['It reads your labels and writes the routines'],
+          ),
+        ],
+      ),
+      icon('arrowRight', h, 'h-5 w-5 shrink-0 text-[var(--ms-text-2)]'),
+    ],
+  )
+
+const setupPanel = (h: HtmlBuilder<Message>): Html => {
+  const divider = h.span([h.Class('flex-1 h-px bg-[var(--ms-border)]')])
+  return h.div(
+    [h.Class('mt-8')],
+    [
+      h.button(
+        [
+          h.Class(primaryButtonClassName + ' gap-2'),
+          h.OnClick(Message.ClickedGetPlan()),
+        ],
+        buttonContent('Get a plan from ChatGPT', 'sparkle', h),
+      ),
+      h.p(
+        [h.Class(helperTextClassName + ' mt-3 text-center')],
+        [
+          'Answer a few questions, paste the prompt into ChatGPT, then paste its answer back here. It fills in the products and the routines.',
         ],
       ),
       h.div(
-        [h.Class('flex flex-col gap-3 max-w-[280px] mx-auto')],
+        [h.Class('flex items-center gap-3 mt-8 mb-5')],
+        [
+          divider,
+          h.span(
+            [h.Class('text-sm text-[var(--ms-text-2)] shrink-0')],
+            ['or do it by hand'],
+          ),
+          divider,
+        ],
+      ),
+      h.div(
+        [h.Class('flex flex-col gap-3')],
         [
           h.button(
             [
-              h.Class(primaryButtonClassName),
+              h.Class(secondaryButtonClassName + ' gap-2'),
               h.OnClick(Message.ClickedNewProduct()),
             ],
             buttonContent('Add a product', 'plus', h),
           ),
           h.button(
             [
-              h.Class(secondaryButtonClassName),
+              h.Class(secondaryButtonClassName + ' gap-2'),
               h.OnClick(Message.ClickedNewRoutine()),
             ],
             buttonContent('Create a routine', 'list', h),
@@ -292,6 +344,7 @@ const setupPanel = (model: Model, h: HtmlBuilder<Message>): Html =>
       ),
     ],
   )
+}
 
 export const todayView = (model: Model, h: HtmlBuilder<Message>): Html => {
   const { due, pausedCount } = dueRoutines(model.routines)
@@ -329,8 +382,10 @@ export const todayView = (model: Model, h: HtmlBuilder<Message>): Html => {
 
       activeRunBanner(model, h),
 
+      isFirstRun ? null : planEntry(h),
+
       isFirstRun
-        ? setupPanel(model, h)
+        ? setupPanel(h)
         : h.div(
             [],
             [
