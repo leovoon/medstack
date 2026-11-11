@@ -4,7 +4,14 @@ import { defineMessageUnion } from 'foldkit/message'
 
 import { Dialog } from '@foldkit/ui'
 
-import { Dose, Product, ProductKind, Routine } from './domain'
+import {
+  Dose,
+  PlanPhotoSource,
+  PlanScope,
+  Product,
+  ProductKind,
+  Routine,
+} from './domain'
 
 export const Message = defineMessageUnion({
   // navigation
@@ -112,6 +119,13 @@ export const Message = defineMessageUnion({
   ClickedGetPlan: {},
   UpdatedPlanMedicine: { value: Schema.String },
   UpdatedPlanLabel: { value: Schema.String },
+  ClickedPickPlanPhotos: { source: PlanPhotoSource },
+  SelectedLabelPhotos: { files: Schema.Array(File.File) },
+  CompletedLabelPhotos: {
+    texts: Schema.Array(Schema.String),
+    failedCount: Schema.Number,
+  },
+  SelectedPlanScope: { scope: PlanScope },
   ClickedCopyPlanPrompt: {},
   CompletedCopyPlanPrompt: {},
   FailedCopyPlanPrompt: {},

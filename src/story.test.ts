@@ -1240,8 +1240,9 @@ describe('update', () => {
         update,
         given(modelWith({ page: Page.Plan() })),
         message(
-          Message.CompletedLabelText({
-            text: 'CLOBETASOL PROPIONATE\nApply thinly twice a day',
+          Message.CompletedLabelPhotos({
+            texts: ['CLOBETASOL PROPIONATE\nApply thinly twice a day'],
+            failedCount: 0,
           }),
         ),
         model(next => {
@@ -1251,6 +1252,30 @@ describe('update', () => {
           )
           expect(next.labelStatus).toBe('idle')
           expect(Option.isNone(next.maybeProductDraft)).toBe(true)
+        }),
+      )
+    })
+
+    test('photos taken together all land in the ask boxes', () => {
+      story(
+        update,
+        given(modelWith({ page: Page.Plan() })),
+        message(
+          Message.CompletedLabelPhotos({
+            texts: [
+              'CLOBETASOL PROPIONATE\nApply thinly twice a day',
+              'CALCIPOTRIOL OINTMENT\nOnce at night',
+            ],
+            failedCount: 0,
+          }),
+        ),
+        model(next => {
+          expect(next.planMedicine).toBe(
+            'CLOBETASOL PROPIONATE, CALCIPOTRIOL OINTMENT',
+          )
+          expect(next.planLabel).toBe(
+            'CLOBETASOL PROPIONATE\nApply thinly twice a day\n\nCALCIPOTRIOL OINTMENT\nOnce at night',
+          )
         }),
       )
     })
@@ -1265,10 +1290,69 @@ describe('update', () => {
             planLabel: 'Twice a day',
           }),
         ),
-        message(Message.CompletedLabelText({ text: 'SOMETHING ELSE' })),
+        message(
+          Message.CompletedLabelPhotos({
+            texts: ['SOMETHING ELSE'],
+            failedCount: 0,
+          }),
+        ),
         model(next => {
-          expect(next.planMedicine).toBe('My cream')
-          expect(next.planLabel).toBe('Twice a day')
+          expect(next.planMedicine).toBe('My cream, SOMETHING ELSE')
+          expect(next.planLabel).toBe('Twice a day\n\nSOMETHING ELSE')
+        }),
+      )
+    })
+
+    test('the same label photographed twice is not added twice', () => {
+      story(
+        update,
+        given(
+          modelWith({
+            page: Page.Plan(),
+            planMedicine: 'CLOBETASOL PROPIONATE',
+            planLabel: 'CLOBETASOL PROPIONATE\nApply thinly',
+          }),
+        ),
+        message(
+          Message.CompletedLabelPhotos({
+            texts: ['CLOBETASOL PROPIONATE\nApply thinly'],
+            failedCount: 0,
+          }),
+        ),
+        model(next => {
+          expect(next.planMedicine).toBe('CLOBETASOL PROPIONATE')
+          expect(next.planLabel).toBe('CLOBETASOL PROPIONATE\nApply thinly')
+        }),
+      )
+    })
+
+    test('a partial read says how many photos landed', () => {
+      story(
+        update,
+        given(modelWith({ page: Page.Plan() })),
+        message(
+          Message.CompletedLabelPhotos({
+            texts: ['CLOBETASOL PROPIONATE'],
+            failedCount: 1,
+          }),
+        ),
+        model(next => {
+          expect(next.planMedicine).toBe('CLOBETASOL PROPIONATE')
+          expect(next.maybeToast).toStrictEqual(
+            Option.some('Read 1 of 2 photos. Type the rest.'),
+          )
+        }),
+      )
+    })
+
+    test('cancelling the photo picker changes nothing', () => {
+      story(
+        update,
+        given(modelWith({ page: Page.Plan() })),
+        message(Message.SelectedLabelPhotos({ files: [] })),
+        model(next => {
+          expect(next.labelStatus).toBe('idle')
+          expect(next.planMedicine).toBe('')
         }),
       )
     })
@@ -1352,12 +1436,35 @@ describe('update', () => {
     ].join('\n')
 
     test('the prompt carries the schema and the patient input', () => {
-      const prompt = planPrompt('Clobetasol cream', 'Apply twice a day.')
+      const prompt = planPrompt('Clobetasol cream', 'Apply twice a day.', 'one')
       expect(prompt).toContain('medstack.plan/1')
       expect(prompt).toContain('Clobetasol cream')
       expect(prompt).toContain('Apply twice a day.')
       expect(prompt).toContain('Never guess')
       expect(prompt).toContain('pharmacistQuestions')
+    })
+
+    test('one plan keeps its steps in one routine per time of day', () => {
+      const prompt = planPrompt('Clobetasol', 'Twice a day.', 'one')
+      expect(prompt).toContain('This is one plan.')
+      expect(prompt).not.toContain('These are separate plans.')
+    })
+
+    test('several plans each get their own routine', () => {
+      const prompt = planPrompt('Clobetasol', 'Twice a day.', 'many')
+      expect(prompt).toContain('These are separate plans.')
+      expect(prompt).toContain('one label block per plan')
+    })
+
+    test('the plan count the user picked is kept', () => {
+      story(
+        update,
+        given(modelWith({ page: Page.Plan() })),
+        message(Message.SelectedPlanScope({ scope: 'many' })),
+        model(next => {
+          expect(next.planScope).toBe('many')
+        }),
+      )
     })
 
     test('copying the prompt emits the clipboard command', () => {

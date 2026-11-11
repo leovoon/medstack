@@ -19,11 +19,13 @@ import {
   ReadClock,
   ReadDayKey,
   ReadImportFile,
+  ReadLabelPhotos,
   ReadLabelText,
   RequestWakeLock,
   SaveState,
   SelectImportFile,
   SelectLabelPhoto,
+  SelectPlanPhotos,
   SkipStep,
   StartRun,
 } from './command'
@@ -70,6 +72,26 @@ const save = (model: Model): UpdateReturn => ({
 
 const navigate = (model: Model, page: Page): UpdateReturn =>
   save(modifyFields(model, { page: () => page }))
+
+/**
+ * Photos queue up: each label lands under the last one, and nothing already typed or already
+ * read is thrown away.
+ */
+const appendLabelText = (existing: string, text: string): string => {
+  const trimmed = text.trim()
+  if (trimmed === '' || existing.includes(trimmed)) {
+    return existing
+  }
+  return existing.trim() === '' ? trimmed : `${existing.trim()}\n\n${trimmed}`
+}
+
+const appendMedicineName = (existing: string, text: string): string => {
+  const name = labelNameFromText(text)
+  if (name === '' || existing.toLowerCase().includes(name.toLowerCase())) {
+    return existing
+  }
+  return existing.trim() === '' ? name : `${existing.trim()}, ${name}`
+}
 
 const updateProductDraft = (
   model: Model,
@@ -160,6 +182,7 @@ const baseWithSaved = (saved: SavedState): Model => {
     planStage: 'ask' as const,
     planMedicine: '',
     planLabel: '',
+    planScope: 'one' as const,
     planPaste: '',
     maybePlanImport: Option.none(),
     labelStatus: 'idle' as const,
@@ -296,10 +319,7 @@ export const update = (model: Model, message: Message) =>
         onNone: () => ({ model }),
         onSome: file => ({
           model: { ...model, labelStatus: 'reading' as const },
-          commands:
-            model.page._tag === 'Plan'
-              ? [ReadLabelText({ file })]
-              : [MakeLabelThumbnail({ file }), ReadLabelText({ file })],
+          commands: [MakeLabelThumbnail({ file }), ReadLabelText({ file })],
         }),
       }),
     CompletedLabelThumbnail: ({ thumbnail }) =>
@@ -307,31 +327,51 @@ export const update = (model: Model, message: Message) =>
     FailedLabelThumbnail: () => ({
       model: { ...model, labelStatus: 'failed' as const },
     }),
-    CompletedLabelText: ({ text }) =>
-      model.page._tag === 'Plan'
-        ? {
-            model: modifyFields(model, {
-              planMedicine: () =>
-                model.planMedicine.trim() === ''
-                  ? labelNameFromText(text)
-                  : model.planMedicine,
-              planLabel: () =>
-                model.planLabel.trim() === '' ? text.trim() : model.planLabel,
-              labelStatus: () => 'idle' as const,
-            }),
-          }
+    ClickedPickPlanPhotos: ({ source }) => ({
+      model,
+      commands: [SelectPlanPhotos({ source })],
+    }),
+    SelectedLabelPhotos: ({ files }) =>
+      files.length === 0
+        ? { model }
         : {
-            model: {
-              ...updateProductDraft(model, draft => {
-                const name = labelNameFromText(text)
-                return {
-                  ...draft,
-                  name: draft.name.trim() === '' ? name : draft.name,
-                }
-              }).model,
-              labelStatus: 'idle' as const,
-            },
+            model: { ...model, labelStatus: 'reading' as const },
+            commands: [ReadLabelPhotos({ files })],
           },
+    CompletedLabelPhotos: ({ texts, failedCount }) => {
+      const next = modifyFields(model, {
+        planMedicine: current =>
+          Array.reduce(texts, current, appendMedicineName),
+        planLabel: current => Array.reduce(texts, current, appendLabelText),
+        labelStatus: () => 'idle' as const,
+      })
+      if (failedCount === 0) {
+        return { model: next }
+      }
+      return {
+        model: modifyFields(next, {
+          maybeToast: () =>
+            Option.some(
+              `Read ${texts.length} of ${texts.length + failedCount} photos. Type the rest.`,
+            ),
+        }),
+      }
+    },
+    SelectedPlanScope: ({ scope }) => ({
+      model: modifyFields(model, { planScope: () => scope }),
+    }),
+    CompletedLabelText: ({ text }) => ({
+      model: {
+        ...updateProductDraft(model, draft => {
+          const name = labelNameFromText(text)
+          return {
+            ...draft,
+            name: draft.name.trim() === '' ? name : draft.name,
+          }
+        }).model,
+        labelStatus: 'idle' as const,
+      },
+    }),
     FailedLabelText: () => ({
       model: {
         ...model,
@@ -992,7 +1032,11 @@ export const update = (model: Model, message: Message) =>
       model,
       commands: [
         CopyPlanPrompt({
-          text: planPrompt(model.planMedicine, model.planLabel),
+          text: planPrompt(
+            model.planMedicine,
+            model.planLabel,
+            model.planScope,
+          ),
         }),
       ],
     }),

@@ -21,11 +21,13 @@ export {
   ReadClock,
   ReadDayKey,
   ReadImportFile,
+  ReadLabelPhotos,
   ReadLabelText,
   RequestWakeLock,
   SaveState,
   SelectImportFile,
   SelectLabelPhoto,
+  SelectPlanPhotos,
   SkipStep,
   StartRun,
 } from './command'

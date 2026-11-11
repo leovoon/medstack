@@ -293,13 +293,20 @@ new or edited; nothing is a single wall of fields.
 Reached from the Today setup panel and from Settings. The app never calls a network; the user
 moves the text.
 
-- **Ask:** one labelled block — `The label` — holding `Take a photo of the label` above the two
-  inputs (`What did the doctor give you?`, `Copy what the label says`). The photo is read by the
-  same on-device OCR as §3.10 and fills both boxes (the doctor box gets the strongest drug-name
-  line), and anything already typed is never overwritten. Then a
+- **Ask:** one labelled block — `The label` — holding `Take a photo` (camera) and
+  `Choose photos` (gallery, several at once) above the two inputs (`What did the doctor give you?`,
+  `Copy what the label says`). Photos are read by the same on-device OCR as §3.10, one after
+  another on one worker, and the readings stack: each label block is appended, and each photo's
+  strongest drug-name line is appended to the doctor box. Anything already typed is kept, and a
+  label already on the page is not added twice. A photo that will not read still leaves the ones
+  that did, with one toast — `Read 1 of 2 photos. Type the rest.`
+- **One plan or several:** `How many plans did the doctor give you?` offers `One plan` and
+  `Several plans`. It only changes the prompt: one plan becomes one routine per time of day,
+  several plans become one routine per plan and are never merged into each other. Then a
   `Copy the prompt` button that puts a self-contained prompt on the clipboard. The prompt
-  carries the patient input, the `medstack.plan/1` shape, and the hard rules: use only the
-  label, mark gaps as questions, never guess a dose or a wait, output one ```json block.
+  carries the patient input, the plan count, the `medstack.plan/1` shape, and the hard rules:
+  use only the label, mark gaps as questions, never guess a dose or a wait, output one
+  ```json block.
 - `Open ChatGPT` opens `https://chatgpt.com/?q=<prompt>` in a new tab. A collapsed
   `Show the prompt` block holds the same text for hand-copying when the clipboard is blocked.
 - **Paste:** `I have the answer` swaps to a paste box. `Import the plan` decodes the first
@@ -342,9 +349,12 @@ Typing `Clobetasol propionate 0.05%` one-handed is the worst part of adding a pr
 of the wizard offers a camera — and so does `Get a plan`, where the same photo fills both ask boxes
 (§3.9).
 
-- `Take a photo of the label` opens the phone's photo picker through `<input type="file"
-  accept="image/*">`, which offers `Take Photo` on iOS and Android, so the camera is one tap
-  away. No `getUserMedia`, no permission prompt beyond the OS one.
+- Product step 1 offers `Take a photo of the label`; `Get a plan` offers `Take a photo` and
+  `Choose photos` (§3.9). Both build an `<input type="file" accept="image/*">`. Foldkit's
+  `File.select` cannot ask for the camera, so the two plan buttons use a local picker: the camera
+  one sets `capture="environment"` (it must be written with `setAttribute`; the DOM property does
+  not reflect in Chrome) and takes one photo, the gallery one sets `multiple`. No `getUserMedia`,
+  no permission prompt beyond the OS one.
 - Two things happen at once: a 112×112 WebP thumbnail is cut from the photo, and the same photo is
   downscaled to 1600 px and read by Tesseract.js running as WASM **on the device**.
 - The first line that looks like a drug name (letters, not an `NDC`/`Lot`/`Exp` line, ≥ 3 letters)

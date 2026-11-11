@@ -8,6 +8,7 @@ import Tesseract, { PSM } from 'tesseract.js'
 import { BrowserCrypto, BrowserKeyValueStore } from '@effect/platform-browser'
 
 import {
+  PlanPhotoSource,
   SavedState,
   StoredSavedStateJsonString,
   dayKeyFromDate,
@@ -308,6 +309,51 @@ const canvasFromFile = async (
   return canvas
 }
 
+/**
+ * `File.select` cannot ask the phone for the camera, so the plan screen builds its own
+ * `<input type="file">` and sets `capture`. Without it, a phone opens the gallery.
+ */
+const openPhotoPicker = (
+  source: PlanPhotoSource,
+): Effect.Effect<ReadonlyArray<File.File>> =>
+  Effect.callback((resume, signal) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.multiple = source === 'library'
+    if (source === 'camera') {
+      // The property alone does not write the attribute in Chrome, so set it directly.
+      input.setAttribute('capture', 'environment')
+    }
+    input.style.display = 'none'
+    const cleanup = () => {
+      input.remove()
+    }
+    const handleChange = () => {
+      const files = input.files === null ? [] : Array.fromIterable(input.files)
+      cleanup()
+      resume(Effect.succeed(files))
+    }
+    const handleCancel = () => {
+      cleanup()
+      resume(Effect.succeed([]))
+    }
+    input.addEventListener('change', handleChange)
+    input.addEventListener('cancel', handleCancel)
+    signal.addEventListener('abort', cleanup)
+    document.body.appendChild(input)
+    input.click()
+  })
+
+export const SelectPlanPhotos = Command.define('SelectPlanPhotos', {
+  args: { source: PlanPhotoSource },
+  messages: [Message.SelectedLabelPhotos],
+  execute: ({ source }) =>
+    openPhotoPicker(source).pipe(
+      Effect.map(files => Message.SelectedLabelPhotos({ files })),
+    ),
+})
+
 export const SelectLabelPhoto = Command.define('SelectLabelPhoto', {
   messages: [Message.SelectedLabelPhoto],
   execute: File.select(['image/*']).pipe(
@@ -368,5 +414,41 @@ export const ReadLabelText = Command.define('ReadLabelText', {
         catch: () => new Error('ocr'),
       })
       return Message.CompletedLabelText({ text })
+    }).pipe(Effect.catch(() => Effect.succeed(Message.FailedLabelText()))),
+})
+
+/**
+ * Reads several labels on one OCR worker, one photo after another: the worker handles one
+ * job at a time, so firing them in parallel would fail on all but the first.
+ */
+export const ReadLabelPhotos = Command.define('ReadLabelPhotos', {
+  args: { files: Schema.Array(File.File) },
+  messages: [Message.CompletedLabelPhotos, Message.FailedLabelText],
+  execute: ({ files }) =>
+    Effect.gen(function* () {
+      const worker = yield* yield* OCR_WORKER_EFFECT
+      const read = yield* Effect.forEach(files, file =>
+        Effect.tryPromise({
+          try: async () => {
+            const canvas = await canvasFromFile(file, 1600)
+            if (canvas === null) {
+              throw new Error('no canvas')
+            }
+            const result = await worker.recognize(canvas)
+            return result.data.text
+          },
+          catch: () => new Error('ocr'),
+        }).pipe(Effect.option),
+      )
+      const texts = Array.flatMap(read, maybeText =>
+        Option.match(maybeText, {
+          onNone: () => [],
+          onSome: text => (text.trim() === '' ? [] : [text]),
+        }),
+      )
+      const failedCount = read.length - texts.length
+      return texts.length === 0
+        ? Message.FailedLabelText()
+        : Message.CompletedLabelPhotos({ texts, failedCount })
     }).pipe(Effect.catch(() => Effect.succeed(Message.FailedLabelText()))),
 })

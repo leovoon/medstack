@@ -856,13 +856,32 @@ export const kindFromForm = (form: string): ProductKind => {
   return 'Other'
 }
 
-export const planPrompt = (medicine: string, labelText: string): string =>
+export const PlanScope = Schema.Literals(['one', 'many'])
+export type PlanScope = typeof PlanScope.Type
+
+export const PlanPhotoSource = Schema.Literals(['camera', 'library'])
+export type PlanPhotoSource = typeof PlanPhotoSource.Type
+
+const scopeLine = (scope: PlanScope): string =>
+  scope === 'one' ? 'one plan' : 'more than one plan, one label block per plan'
+
+const scopeRule = (scope: PlanScope): string =>
+  scope === 'one'
+    ? '6. This is one plan. Put it into one routine per time of day, never one routine per product.'
+    : '6. These are separate plans. Give each plan its own routine, named after that plan, and never merge steps from two plans into one routine, even when the product is the same.'
+
+export const planPrompt = (
+  medicine: string,
+  labelText: string,
+  scope: PlanScope,
+): string =>
   [
     'You are filling in a routine tracker for one person. Do not diagnose and do not change any dose.',
     '',
     'Patient input',
     `Medicine: ${medicine === '' ? '(not given)' : medicine}`,
-    'Label or instructions, copied exactly:',
+    `What the doctor gave me: ${scopeLine(scope)}`,
+    'Label or instructions, copied exactly, one block per label:',
     labelText === '' ? '(not given)' : labelText,
     '',
     'Rules',
@@ -871,6 +890,7 @@ export const planPrompt = (medicine: string, labelText: string): string =>
     '3. Only give a wait when the label or the instructions say one. Otherwise use 0.',
     '4. Order steps only where the order matters (same skin, same moment). Do not invent an order.',
     '5. Output exactly one ```json block and nothing else. No prose before or after it.',
+    scopeRule(scope),
     '',
     `Shape (schema ${PLAN_SCHEMA}):`,
     '{',

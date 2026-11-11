@@ -9,6 +9,7 @@ import {
   fieldLabelClassName,
   helperTextClassName,
   inputClassName,
+  optionChip,
   primaryButtonClassName,
   quietButtonClassName,
   secondaryButtonClassName,
@@ -35,9 +36,25 @@ const header = (h: HtmlBuilder<Message>): Html =>
     ],
   )
 
+const photoButton = (
+  label: string,
+  source: 'camera' | 'library',
+  iconName: 'camera' | 'plus',
+  model: Model,
+  h: HtmlBuilder<Message>,
+): Html =>
+  h.button(
+    [
+      h.Class(secondaryButtonClassName + ' flex-1'),
+      h.Disabled(model.labelStatus === 'reading'),
+      h.OnClick(Message.ClickedPickPlanPhotos({ source })),
+    ],
+    buttonContent(label, iconName, h),
+  )
+
 /**
- * The two things the user has to tell us live in one block, because one photo of the
- * label is meant to fill both of them.
+ * The two things the user has to tell us live in one block, because the photos of the
+ * labels are meant to fill both of them.
  */
 const labelBlock = (model: Model, h: HtmlBuilder<Message>): Html =>
   h.div(
@@ -50,23 +67,24 @@ const labelBlock = (model: Model, h: HtmlBuilder<Message>): Html =>
       h.p(
         [h.Class(helperTextClassName + ' mb-3')],
         [
-          'Take a photo and both boxes fill in. Fix anything it gets wrong, or type it yourself.',
+          'One photo per label fills both boxes. Take them in any order and fix anything it gets wrong.',
         ],
       ),
-      h.button(
+      h.div(
+        [h.Class('flex gap-3 mb-4')],
         [
-          h.Class(secondaryButtonClassName + ' mb-4'),
-          h.Disabled(model.labelStatus === 'reading'),
-          h.OnClick(Message.ClickedPickLabelPhoto()),
+          photoButton('Take a photo', 'camera', 'camera', model, h),
+          photoButton('Choose photos', 'library', 'plus', model, h),
         ],
-        buttonContent(
-          model.labelStatus === 'reading'
-            ? 'Reading the label...'
-            : 'Take a photo of the label',
-          'camera',
-          h,
-        ),
       ),
+      ...(model.labelStatus === 'reading'
+        ? [
+            h.p(
+              [h.Class(helperTextClassName + ' mb-3')],
+              ['Reading the label...'],
+            ),
+          ]
+        : []),
       ...(model.labelStatus === 'failed'
         ? [
             h.p(
@@ -115,7 +133,11 @@ const askStage = (
   model: Model,
   h: HtmlBuilder<Message>,
 ): ReadonlyArray<Html> => {
-  const prompt = planPrompt(model.planMedicine, model.planLabel)
+  const prompt = planPrompt(
+    model.planMedicine,
+    model.planLabel,
+    model.planScope,
+  )
   return [
     h.p(
       [h.Class(helperTextClassName + ' mb-5')],
@@ -124,6 +146,34 @@ const askStage = (
       ],
     ),
     labelBlock(model, h),
+    h.div(
+      [h.Class('mb-5')],
+      [
+        h.p(
+          [h.Class(fieldLabelClassName)],
+          ['How many plans did the doctor give you?'],
+        ),
+        h.div(
+          [h.Class('grid grid-cols-2 gap-3')],
+          [
+            optionChip(
+              'One plan',
+              'sparkle',
+              model.planScope === 'one',
+              Message.SelectedPlanScope({ scope: 'one' }),
+              h,
+            ),
+            optionChip(
+              'Several plans',
+              'list',
+              model.planScope === 'many',
+              Message.SelectedPlanScope({ scope: 'many' }),
+              h,
+            ),
+          ],
+        ),
+      ],
+    ),
     h.button(
       [
         h.Class(primaryButtonClassName + ' gap-2'),
