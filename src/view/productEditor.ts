@@ -259,6 +259,8 @@ const waitStep = (
         h.Class(inputClassName + ' !w-28 text-center'),
         h.Id('product-wait'),
         h.Type('number'),
+        h.InputMode('numeric'),
+        h.EnterKeyHint('done'),
         h.Min('0'),
         h.Max('240'),
         h.Value(String(draft.defaultWaitMinutes)),
@@ -456,7 +458,7 @@ export const productEditorView = (
             ]
 
       return h.div(
-        [h.Class('flex flex-col min-h-[70vh]')],
+        [h.Class('flex flex-col min-h-[70dvh]')],
         [
           h.div(
             [h.Class('flex items-center justify-between mb-4')],

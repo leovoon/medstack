@@ -170,6 +170,8 @@ const stepRow = (
             h.Class(inputClassName + ' !w-24 !h-12 text-center'),
             h.Id(`step-wait-${index}`),
             h.Type('number'),
+            h.InputMode('numeric'),
+            h.EnterKeyHint('done'),
             h.Min('0'),
             h.Max('240'),
             h.Value(String(step.waitMinutes)),
@@ -601,7 +603,7 @@ export const routineEditorView = (
               ]
 
       return h.div(
-        [h.Class('flex flex-col min-h-[70vh]')],
+        [h.Class('flex flex-col min-h-[70dvh]')],
         [
           h.div(
             [h.Class('flex items-center justify-between mb-4')],

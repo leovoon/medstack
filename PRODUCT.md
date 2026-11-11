@@ -293,6 +293,9 @@ new or edited; nothing is a single wall of fields.
 Reached from the Today setup panel and from Settings. The app never calls a network; the user
 moves the text.
 
+- **Two steps, always on screen:** `Step 1 of 2` above the ask, `Step 2 of 2` above the paste,
+  each with the same thin progress line the editors use. The round trip is two halves of one
+  task, and the second half must not arrive as a surprise.
 - **Ask:** one labelled block — `The label` — holding `Take a photo` (camera) and
   `Choose photos` (gallery, several at once) above the two inputs (`What did the doctor give you?`,
   `Copy what the label says`). Photos are read by the same on-device OCR as §3.10, one after
@@ -306,7 +309,11 @@ moves the text.
   `Copy the prompt` button that puts a self-contained prompt on the clipboard. The prompt
   carries the patient input, the plan count, the `medstack.plan/1` shape, and the hard rules:
   use only the label, mark gaps as questions, never guess a dose or a wait, output one
-  ```json block.
+  ```json block. Once the clipboard write succeeds the button itself reads `Prompt copied` with a
+  tick, and a line under it says `Paste it into ChatGPT, then come back with the answer.` — the
+  confirmation stays on screen instead of only in a toast. Editing either box or changing the
+  plan count puts it back to `Copy the prompt`, because that text is no longer what is on the
+  clipboard.
 - `Open ChatGPT` opens `https://chatgpt.com/?q=<prompt>` in a new tab. A collapsed
   `Show the prompt` block holds the same text for hand-copying when the clipboard is blocked.
 - **Paste:** `I have the answer` swaps to a paste box. `Import the plan` decodes the first
@@ -470,6 +477,17 @@ nothing should make him think.
   with an amber ring. Tab order follows reading order.
 - **Tone of the timer**: the countdown is information, not pressure. No red, no flashing, no
   "hurry". When it hits zero the ring settles and the copy becomes "Ready".
+- **Platform layer** (the difference between a web page and an installed app):
+  `viewport-fit=cover` + `interactive-widget=resizes-content`; the shell is `100dvh` (never
+  `100vh`, which is the tallest the viewport gets) and pads itself with
+  `env(safe-area-inset-top)`; the bottom bar pads with `env(safe-area-inset-bottom)`; the
+  toast is in the flow at the top of the screen, never a fixed overlay across a title.
+  `-webkit-tap-highlight-color: transparent`, `overscroll-behavior: none` on `html` and
+  `contain` on `body` (no pull-to-refresh mid-run), no `user-scalable=no` — inputs stay at
+  16px so iOS never zooms. Controls get `touch-action: manipulation` and `user-select: none`;
+  every control scales to 0.98 on `:active` so the press is felt on touch-down, and no
+  `:hover` style exists outside `@media (hover: hover) and (pointer: fine)`. Minute inputs use
+  `inputmode="numeric"` so the phone opens the number pad.
 
 ---
 

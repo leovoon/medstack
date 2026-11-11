@@ -36,6 +36,36 @@ const header = (h: HtmlBuilder<Message>): Html =>
     ],
   )
 
+/**
+ * The round trip is two steps, not one screen: say what it is, then bring the answer back.
+ * Saying which step you are on is what keeps the second half from being a surprise.
+ */
+const progress = (stage: Model['planStage'], h: HtmlBuilder<Message>): Html => {
+  const stepIndex = stage === 'ask' ? 0 : 1
+  return h.div(
+    [h.Class('mb-5')],
+    [
+      h.p(
+        [h.Class('text-sm text-[var(--ms-text-2)]')],
+        [`Step ${stepIndex + 1} of 2`],
+      ),
+      h.div(
+        [
+          h.Class(
+            'h-1 rounded-full bg-[var(--ms-surface)] overflow-hidden mt-2',
+          ),
+        ],
+        [
+          h.div([
+            h.Class('h-full bg-[var(--ms-accent)]'),
+            h.Style({ width: `${Math.round(((stepIndex + 1) / 2) * 100)}%` }),
+          ]),
+        ],
+      ),
+    ],
+  )
+}
+
 const photoButton = (
   label: string,
   source: 'camera' | 'library',
@@ -180,8 +210,29 @@ const askStage = (
         h.Disabled(model.planMedicine.trim() === ''),
         h.OnClick(Message.ClickedCopyPlanPrompt()),
       ],
-      buttonContent('Copy the prompt', 'copy', h),
+      buttonContent(
+        model.planPromptState === 'copied'
+          ? 'Prompt copied'
+          : 'Copy the prompt',
+        model.planPromptState === 'copied' ? 'check' : 'copy',
+        h,
+      ),
     ),
+    ...(model.planPromptState === 'copied'
+      ? [
+          h.p(
+            [h.Class(helperTextClassName + ' mt-2')],
+            ['Paste it into ChatGPT, then come back with the answer.'],
+          ),
+        ]
+      : model.planPromptState === 'failed'
+        ? [
+            h.p(
+              [h.Class(helperTextClassName + ' mt-2')],
+              ['Could not copy. Open the prompt below and copy it by hand.'],
+            ),
+          ]
+        : []),
     h.a(
       [
         h.Class(
@@ -270,6 +321,7 @@ export const planView = (model: Model, h: HtmlBuilder<Message>): Html =>
     [],
     [
       header(h),
+      progress(model.planStage, h),
       ...(model.planStage === 'ask'
         ? askStage(model, h)
         : pasteStage(model, h)),

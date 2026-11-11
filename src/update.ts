@@ -180,6 +180,7 @@ const baseWithSaved = (saved: SavedState): Model => {
     confirmDialog: Dialog.init({ id: 'confirm-dialog' }),
     maybeToast: Option.none(),
     planStage: 'ask' as const,
+    planPromptState: 'stale' as const,
     planMedicine: '',
     planLabel: '',
     planScope: 'one' as const,
@@ -358,7 +359,10 @@ export const update = (model: Model, message: Message) =>
       }
     },
     SelectedPlanScope: ({ scope }) => ({
-      model: modifyFields(model, { planScope: () => scope }),
+      model: modifyFields(model, {
+        planScope: () => scope,
+        planPromptState: () => 'stale' as const,
+      }),
     }),
     CompletedLabelText: ({ text }) => ({
       model: {
@@ -1020,10 +1024,16 @@ export const update = (model: Model, message: Message) =>
         Page.Plan(),
       ),
     UpdatedPlanMedicine: ({ value }) => ({
-      model: modifyFields(model, { planMedicine: () => value }),
+      model: modifyFields(model, {
+        planMedicine: () => value,
+        planPromptState: () => 'stale' as const,
+      }),
     }),
     UpdatedPlanLabel: ({ value }) => ({
-      model: modifyFields(model, { planLabel: () => value }),
+      model: modifyFields(model, {
+        planLabel: () => value,
+        planPromptState: () => 'stale' as const,
+      }),
     }),
     UpdatedPlanPaste: ({ value }) => ({
       model: modifyFields(model, { planPaste: () => value }),
@@ -1041,13 +1051,14 @@ export const update = (model: Model, message: Message) =>
       ],
     }),
     CompletedCopyPlanPrompt: () => ({
-      model: setToast(model, 'Prompt copied. Paste it into ChatGPT.'),
+      model: modifyFields(model, {
+        planPromptState: () => 'copied' as const,
+      }),
     }),
     FailedCopyPlanPrompt: () => ({
-      model: setToast(
-        model,
-        'Could not copy. Select the prompt below and copy it by hand.',
-      ),
+      model: modifyFields(model, {
+        planPromptState: () => 'failed' as const,
+      }),
     }),
     ClickedPlanPasteStep: () => ({
       model: modifyFields(model, { planStage: () => 'paste' as const }),

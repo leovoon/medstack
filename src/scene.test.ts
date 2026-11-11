@@ -516,6 +516,23 @@ describe('view', () => {
       expect(role('button', { name: 'Several plans' })).toExist(),
       expect(text('Open ChatGPT')).toExist(),
       expect(role('button', { name: 'I have the answer' })).toExist(),
+      expect(text('Step 1 of 2')).toExist(),
+    )
+  })
+
+  test('a copied prompt stays marked, so the next move is on screen', () => {
+    const model = modelWith({
+      page: Page.Plan(),
+      planMedicine: 'Clobetasol',
+      planPromptState: 'copied',
+    })
+    scene(
+      { update, view },
+      given(model),
+      expect(role('button', { name: 'Prompt copied' })).toExist(),
+      expect(
+        text('Paste it into ChatGPT, then come back with the answer.'),
+      ).toExist(),
     )
   })
 
@@ -529,6 +546,7 @@ describe('view', () => {
       given(model),
       expect(text('The answer')).toExist(),
       expect(role('button', { name: 'Import the plan' })).toExist(),
+      expect(text('Step 2 of 2')).toExist(),
     )
   })
 

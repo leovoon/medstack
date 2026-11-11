@@ -84,6 +84,8 @@ export const settingsView = (model: Model, h: HtmlBuilder<Message>): Html =>
                 h.Class(inputClassName + ' !w-24 !h-12 text-center'),
                 h.Id('settings-default-wait'),
                 h.Type('number'),
+                h.InputMode('numeric'),
+                h.EnterKeyHint('done'),
                 h.Min('0'),
                 h.Max('240'),
                 h.Value(String(model.settings.defaultWaitMinutes)),

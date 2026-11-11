@@ -1475,9 +1475,38 @@ describe('update', () => {
         Command.expectExact(CopyPlanPrompt),
         Command.resolve(CopyPlanPrompt, Message.CompletedCopyPlanPrompt()),
         model(next => {
-          expect(next.maybeToast).toStrictEqual(
-            Option.some('Prompt copied. Paste it into ChatGPT.'),
-          )
+          expect(next.planPromptState).toBe('copied')
+          expect(next.maybeToast).toStrictEqual(Option.none())
+        }),
+      )
+    })
+
+    test('a blocked clipboard leaves the prompt marked failed', () => {
+      story(
+        update,
+        given(modelWith({ planMedicine: 'Clobetasol' })),
+        message(Message.FailedCopyPlanPrompt()),
+        model(next => {
+          expect(next.planPromptState).toBe('failed')
+        }),
+      )
+    })
+
+    test('changing a box makes a copied prompt stale again', () => {
+      story(
+        update,
+        given(modelWith({ planPromptState: 'copied' })),
+        message(Message.UpdatedPlanMedicine({ value: 'Clobetasol' })),
+        model(next => {
+          expect(next.planPromptState).toBe('stale')
+        }),
+      )
+      story(
+        update,
+        given(modelWith({ planPromptState: 'copied' })),
+        message(Message.SelectedPlanScope({ scope: 'many' })),
+        model(next => {
+          expect(next.planPromptState).toBe('stale')
         }),
       )
     })

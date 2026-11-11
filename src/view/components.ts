@@ -405,12 +405,12 @@ const simpleToastView = (model: Model, h: HtmlBuilder<Message>): Html =>
     onNone: () => h.empty,
     onSome: message =>
       h.div(
-        [h.Class('fixed top-4 inset-x-0 z-50 flex justify-center px-5')],
+        [h.Class('mb-4')],
         [
           h.div(
             [
               h.Class(
-                'relative rounded-lg border border-[var(--ms-border)] bg-[var(--ms-surface)] px-4 py-3 pr-10 text-[var(--ms-text)] shadow-lg max-w-[360px]',
+                'relative rounded-lg border border-[var(--ms-border)] bg-[var(--ms-surface)] pl-4 pr-14 py-3 text-[var(--ms-text)]',
               ),
             ],
             [
@@ -418,7 +418,7 @@ const simpleToastView = (model: Model, h: HtmlBuilder<Message>): Html =>
               h.button(
                 [
                   h.Class(
-                    'absolute top-2 right-2 h-9 w-9 rounded text-[var(--ms-text-2)] cursor-pointer',
+                    'absolute top-1 right-1 h-12 w-12 rounded text-[var(--ms-text-2)] cursor-pointer',
                   ),
                   h.AriaLabel('Dismiss'),
                   h.OnClick(Message.ClickedDismissToast()),
@@ -466,7 +466,7 @@ export const bottomBar = (model: Model, h: HtmlBuilder<Message>): Html => {
   return h.nav(
     [
       h.Class(
-        'fixed bottom-0 inset-x-0 border-t border-[var(--ms-border)] bg-[var(--ms-surface)]',
+        'fixed bottom-0 inset-x-0 border-t border-[var(--ms-border)] bg-[var(--ms-surface)] pb-[env(safe-area-inset-bottom)]',
       ),
     ],
     [
@@ -498,18 +498,17 @@ export const shell = (
   h: HtmlBuilder<Message>,
 ): Html =>
   h.div(
-    [h.Class('min-h-screen bg-[var(--ms-bg)] text-[var(--ms-text)]')],
+    [h.Class('min-h-dvh bg-[var(--ms-bg)] text-[var(--ms-text)]')],
     [
       h.div(
         [
           h.Class(
-            'mx-auto max-w-[480px] px-5 pt-5 pb-28 min-h-screen flex flex-col',
+            'mx-auto max-w-[480px] px-5 pt-[calc(1.25rem+env(safe-area-inset-top))] pb-[calc(7rem+env(safe-area-inset-bottom))] min-h-dvh flex flex-col',
           ),
         ],
-        [body],
+        [simpleToastView(model, h), body],
       ),
       ...(model.page._tag === 'Run' ? [] : [bottomBar(model, h)]),
       confirmDialogView(model, h),
-      simpleToastView(model, h),
     ],
   )
