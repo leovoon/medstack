@@ -75,7 +75,7 @@ const photoButton = (
 ): Html =>
   h.button(
     [
-      h.Class(secondaryButtonClassName + ' flex-1'),
+      h.Class(secondaryButtonClassName + ' flex-1 basis-[8.5rem]'),
       h.Disabled(model.labelStatus === 'reading'),
       h.OnClick(Message.ClickedPickPlanPhotos({ source })),
     ],
@@ -101,10 +101,10 @@ const labelBlock = (model: Model, h: HtmlBuilder<Message>): Html =>
         ],
       ),
       h.div(
-        [h.Class('flex gap-3 mb-4')],
+        [h.Class('flex flex-wrap gap-3 mb-4')],
         [
-          photoButton('Take a photo', 'camera', 'camera', model, h),
-          photoButton('Choose photos', 'library', 'plus', model, h),
+          photoButton('Camera', 'camera', 'camera', model, h),
+          photoButton('Gallery', 'library', 'plus', model, h),
         ],
       ),
       ...(model.labelStatus === 'reading'

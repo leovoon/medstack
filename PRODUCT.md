@@ -296,8 +296,8 @@ moves the text.
 - **Two steps, always on screen:** `Step 1 of 2` above the ask, `Step 2 of 2` above the paste,
   each with the same thin progress line the editors use. The round trip is two halves of one
   task, and the second half must not arrive as a surprise.
-- **Ask:** one labelled block — `The label` — holding `Take a photo` (camera) and
-  `Choose photos` (gallery, several at once) above the two inputs (`What did the doctor give you?`,
+- **Ask:** one labelled block — `The label` — holding `Camera` and `Gallery` (several at
+  once) above the two inputs (`What did the doctor give you?`,
   `Copy what the label says`). Photos are read by the same on-device OCR as §3.10, one after
   another on one worker, and the readings stack: each label block is appended, and each photo's
   strongest drug-name line is appended to the doctor box. Anything already typed is kept, and a
@@ -356,8 +356,8 @@ Typing `Clobetasol propionate 0.05%` one-handed is the worst part of adding a pr
 of the wizard offers a camera — and so does `Get a plan`, where the same photo fills both ask boxes
 (§3.9).
 
-- Product step 1 offers `Take a photo of the label`; `Get a plan` offers `Take a photo` and
-  `Choose photos` (§3.9). Both build an `<input type="file" accept="image/*">`. Foldkit's
+- Product step 1 offers `Take a photo of the label`; `Get a plan` offers `Camera` and
+  `Gallery` (§3.9). Both build an `<input type="file" accept="image/*">`. Foldkit's
   `File.select` cannot ask for the camera, so the two plan buttons use a local picker: the camera
   one sets `capture="environment"` (it must be written with `setAttribute`; the DOM property does
   not reflect in Chrome) and takes one photo, the gallery one sets `multiple`. No `getUserMedia`,
@@ -481,7 +481,11 @@ nothing should make him think.
   `viewport-fit=cover` + `interactive-widget=resizes-content`; the shell is `100dvh` (never
   `100vh`, which is the tallest the viewport gets) and pads itself with
   `env(safe-area-inset-top)`; the bottom bar pads with `env(safe-area-inset-bottom)`; the
-  toast is in the flow at the top of the screen, never a fixed overlay across a title.
+  toast is in the flow at the top of the screen, never a fixed overlay across a title. While
+  a text field has focus the tab bar steps aside, because a bottom-fixed bar would otherwise
+  sit between the field and the keyboard. Buttons wrap to full width rather than wrap their
+  own label, which is why the plan's photo pair is `Camera` / `Gallery`: both fit on one line
+  at 360dp, the narrowest width the app has to serve.
   `-webkit-tap-highlight-color: transparent`, `overscroll-behavior: none` on `html` and
   `contain` on `body` (no pull-to-refresh mid-run), no `user-scalable=no` — inputs stay at
   16px so iOS never zooms. Controls get `touch-action: manipulation` and `user-select: none`;

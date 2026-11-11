@@ -66,6 +66,14 @@ a:active {
   transform: scale(0.98);
 }
 
+/* A keyboard shrinks the page, so a bottom-fixed bar would sit between the field and
+   the keys. Navigation is not part of the form; it steps aside until typing is done. */
+@media (pointer: coarse) {
+  body:has(input:focus, textarea:focus) .ms-tab-bar {
+    display: none;
+  }
+}
+
 :focus-visible {
   outline: 2px solid var(--ms-accent);
   outline-offset: 2px;

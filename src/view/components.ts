@@ -466,7 +466,7 @@ export const bottomBar = (model: Model, h: HtmlBuilder<Message>): Html => {
   return h.nav(
     [
       h.Class(
-        'fixed bottom-0 inset-x-0 border-t border-[var(--ms-border)] bg-[var(--ms-surface)] pb-[env(safe-area-inset-bottom)]',
+        'ms-tab-bar fixed bottom-0 inset-x-0 border-t border-[var(--ms-border)] bg-[var(--ms-surface)] pb-[env(safe-area-inset-bottom)]',
       ),
     ],
     [
