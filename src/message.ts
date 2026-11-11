@@ -132,6 +132,9 @@ export const Message = defineMessageUnion({
   ClickedPlanPasteStep: {},
   ClickedPlanAskStep: {},
   UpdatedPlanPaste: { value: Schema.String },
+  ClickedPlanPasteFromClipboard: {},
+  CompletedReadClipboardText: { text: Schema.String },
+  FailedReadClipboardText: {},
   SubmittedPlanImport: {},
   SucceededImportPlan: {
     products: Schema.Array(Product),

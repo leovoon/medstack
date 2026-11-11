@@ -66,6 +66,36 @@ a:active {
   transform: scale(0.98);
 }
 
+/* Reading a photo has no progress to report, so the eye blinks and a bar sweeps: motion for
+   "working", without inventing a percentage we do not have. */
+.ms-blink {
+  animation: ms-blink 2.4s cubic-bezier(0.2, 0, 0, 1) infinite;
+}
+
+@keyframes ms-blink {
+  0%,
+  88%,
+  100% {
+    transform: scaleY(1);
+  }
+  92% {
+    transform: scaleY(0.15);
+  }
+}
+
+.ms-sweep {
+  animation: ms-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes ms-sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(310%);
+  }
+}
+
 /* A keyboard shrinks the page, so a bottom-fixed bar would sit between the field and
    the keys. Navigation is not part of the form; it steps aside until typing is done. */
 @media (pointer: coarse) {

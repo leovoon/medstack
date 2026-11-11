@@ -74,6 +74,10 @@ const PATHS = {
   download: ['M12 4v11M7 11l5 5 5-5', 'M4 20h16'],
   upload: ['M12 20V9M7 13l5-5 5 5', 'M4 4h16'],
   clipboard: ['M8 4h8v3H8z', 'M16 6h3v15H5V6h3'],
+  eye: [
+    'M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6S2.5 12 2.5 12z',
+    'M12 9.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6z',
+  ],
 
   // the plan
   sparkle: [

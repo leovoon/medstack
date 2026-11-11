@@ -546,7 +546,30 @@ describe('view', () => {
       given(model),
       expect(text('The answer')).toExist(),
       expect(role('button', { name: 'Import the plan' })).toExist(),
+      expect(role('button', { name: 'Paste' })).toExist(),
       expect(text('Step 2 of 2')).toExist(),
+    )
+  })
+
+  test('a field being read from a photo is disabled until the read ends', () => {
+    const model = modelWith({
+      page: Page.Plan(),
+      planMedicine: 'Clobetasol',
+      labelStatus: 'reading',
+    })
+    scene(
+      { update, view },
+      given(model),
+      expect(text('Reading the label')).toExist(),
+      expect(
+        role('textbox', {
+          name: 'What did the doctor give you?',
+          disabled: true,
+        }),
+      ).toExist(),
+      expect(
+        role('textbox', { name: 'Copy what the label says', disabled: true }),
+      ).toExist(),
     )
   })
 

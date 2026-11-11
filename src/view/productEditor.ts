@@ -12,6 +12,7 @@ import {
   inputClassName,
   optionChipClassName,
   primaryButtonClassName,
+  readingLabelView,
   secondaryButtonClassName,
 } from './components'
 import type { IconName } from './icons'
@@ -132,9 +133,7 @@ const photoBlock = (
           ),
         ],
       ),
-  ...(model.labelStatus === 'reading'
-    ? [h.p([h.Class(helperTextClassName + ' mb-4')], ['Reading the label...'])]
-    : []),
+  ...(model.labelStatus === 'reading' ? [readingLabelView(h)] : []),
   ...(model.labelStatus === 'failed'
     ? [
         h.p(
@@ -145,6 +144,7 @@ const photoBlock = (
     : []),
 ]
 
+/** `isDisabled` is for the name field only: it is filled from the label photo, so it waits. */
 const textField = (
   id: string,
   label: string,
@@ -152,6 +152,7 @@ const textField = (
   placeholder: string,
   toMessage: (value: string) => Message,
   h: HtmlBuilder<Message>,
+  isDisabled = false,
 ): Html =>
   h.div(
     [h.Class('mb-4')],
@@ -162,6 +163,7 @@ const textField = (
         h.Id(id),
         h.Value(value),
         h.Placeholder(placeholder),
+        h.Disabled(isDisabled),
         h.OnInput(toMessage),
       ]),
     ],
@@ -416,6 +418,7 @@ export const productEditorView = (
                 'Clobetasol propionate',
                 value => Message.UpdatedProductName({ value }),
                 h,
+                model.labelStatus === 'reading',
               ),
               textField(
                 'product-strength',

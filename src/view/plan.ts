@@ -12,6 +12,7 @@ import {
   optionChip,
   primaryButtonClassName,
   quietButtonClassName,
+  readingLabelView,
   secondaryButtonClassName,
 } from './components'
 
@@ -107,14 +108,7 @@ const labelBlock = (model: Model, h: HtmlBuilder<Message>): Html =>
           photoButton('Gallery', 'library', 'plus', model, h),
         ],
       ),
-      ...(model.labelStatus === 'reading'
-        ? [
-            h.p(
-              [h.Class(helperTextClassName + ' mb-3')],
-              ['Reading the label...'],
-            ),
-          ]
-        : []),
+      ...(model.labelStatus === 'reading' ? [readingLabelView(h)] : []),
       ...(model.labelStatus === 'failed'
         ? [
             h.p(
@@ -135,6 +129,7 @@ const labelBlock = (model: Model, h: HtmlBuilder<Message>): Html =>
             h.Id('plan-medicine'),
             h.Value(model.planMedicine),
             h.Placeholder('Clobetasol cream and vitamin D tablets'),
+            h.Disabled(model.labelStatus === 'reading'),
             h.OnInput(value => Message.UpdatedPlanMedicine({ value })),
           ]),
         ],
@@ -152,6 +147,7 @@ const labelBlock = (model: Model, h: HtmlBuilder<Message>): Html =>
             h.Rows(5),
             h.Value(model.planLabel),
             h.Placeholder('Apply thinly to affected areas twice a day.'),
+            h.Disabled(model.labelStatus === 'reading'),
             h.OnInput(value => Message.UpdatedPlanLabel({ value })),
           ]),
         ],
@@ -285,9 +281,21 @@ const pasteStage = (
   h.div(
     [h.Class('mb-4')],
     [
-      h.label(
-        [h.Class(fieldLabelClassName), h.For('plan-paste')],
-        ['The answer'],
+      h.div(
+        [h.Class('flex items-center justify-between')],
+        [
+          h.label(
+            [h.Class('text-sm text-[var(--ms-text-2)]'), h.For('plan-paste')],
+            ['The answer'],
+          ),
+          h.button(
+            [
+              h.Class(quietButtonClassName + ' -mr-3'),
+              h.OnClick(Message.ClickedPlanPasteFromClipboard()),
+            ],
+            buttonContent('Paste', 'clipboard', h),
+          ),
+        ],
       ),
       h.textarea([
         h.Class(inputClassName + ' !h-56 py-3'),

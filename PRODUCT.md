@@ -303,6 +303,11 @@ moves the text.
   strongest drug-name line is appended to the doctor box. Anything already typed is kept, and a
   label already on the page is not added twice. A photo that will not read still leaves the ones
   that did, with one toast — `Read 1 of 2 photos. Type the rest.`
+- **While a label is being read** the block says `Reading the label` under a line icon of an eye
+  that blinks, with a thin amber bar sweeping beneath it: there is no percentage to report, so the
+  motion only says *still going*. Both inputs and both photo buttons are disabled meanwhile. The
+  read appends to what is already typed, so a keystroke landing mid-read would end up in front of
+  text that arrives afterwards — the field waits rather than racing.
 - **One plan or several:** `How many plans did the doctor give you?` offers `One plan` and
   `Several plans`. It only changes the prompt: one plan becomes one routine per time of day,
   several plans become one routine per plan and are never merged into each other. Then a
@@ -316,7 +321,12 @@ moves the text.
   clipboard.
 - `Open ChatGPT` opens `https://chatgpt.com/?q=<prompt>` in a new tab. A collapsed
   `Show the prompt` block holds the same text for hand-copying when the clipboard is blocked.
-- **Paste:** `I have the answer` swaps to a paste box. `Import the plan` decodes the first
+- **Paste:** `I have the answer` swaps to a paste box with a `Paste` button beside its label
+  (`The answer`). Long-pressing an empty 224px box is the fiddliest gesture in the round trip, so
+  one tap reads the clipboard into the box; the browser's own permission prompt is the only
+  interruption. An empty clipboard keeps whatever is typed and says
+  `The clipboard is empty. Copy the answer first.`; a refused one says
+  `Could not read the clipboard. Long-press the box and paste.` `Import the plan` decodes the first
   ```json block (or the outermost `{…}`) against the plan schema; surrounding prose is
   ignored. A failure shows one plain toast and changes nothing.
 - **Confirm:** the dialog names the counts (`3 products and 2 routines will be added`), lists
@@ -366,7 +376,9 @@ of the wizard offers a camera — and so does `Get a plan`, where the same photo
   downscaled to 1600 px and read by Tesseract.js running as WASM **on the device**.
 - The first line that looks like a drug name (letters, not an `NDC`/`Lot`/`Exp` line, ≥ 3 letters)
   is trimmed to 80 characters and put in the name field. A typed name is never overwritten. The
-  field stays editable — OCR is a head start, not an authority.
+  field stays editable — OCR is a head start, not an authority — but only once the read has
+  finished: while it runs, the field is disabled under the same `Reading the label` indicator
+  (§3.9), so a keystroke cannot land in front of the name that is arriving.
 - The thumbnail is stored on the product (`thumbnail`, a data URL, ~6–10 kB) and shown in the
   Products list and in the wizard review step. It is only a memory aid; it is not read again.
 - Assets are self-hosted under `public/tesseract/` (`worker.min.js`, three LSTM cores, `eng` fast

@@ -16,6 +16,7 @@ import {
   MakeLabelThumbnail,
   MarkRoutineReviewed,
   PlayWaitEndSound,
+  ReadClipboardText,
   ReadClock,
   ReadDayKey,
   ReadImportFile,
@@ -339,6 +340,32 @@ export const update = (model: Model, message: Message) =>
             model: { ...model, labelStatus: 'reading' as const },
             commands: [ReadLabelPhotos({ files })],
           },
+    ClickedPlanPasteFromClipboard: () => ({
+      model,
+      commands: [ReadClipboardText()],
+    }),
+    CompletedReadClipboardText: ({ text }) =>
+      text.trim() === ''
+        ? {
+            model: modifyFields(model, {
+              maybeToast: () =>
+                Option.some('The clipboard is empty. Copy the answer first.'),
+            }),
+          }
+        : {
+            model: modifyFields(model, {
+              planPaste: () => text,
+              maybeToast: () => Option.none(),
+            }),
+          },
+    FailedReadClipboardText: () => ({
+      model: modifyFields(model, {
+        maybeToast: () =>
+          Option.some(
+            'Could not read the clipboard. Long-press the box and paste.',
+          ),
+      }),
+    }),
     CompletedLabelPhotos: ({ texts, failedCount }) => {
       const next = modifyFields(model, {
         planMedicine: current =>

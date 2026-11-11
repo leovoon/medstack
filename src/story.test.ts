@@ -16,6 +16,7 @@ import {
   Origin,
   Page,
   PlayWaitEndSound,
+  ReadClipboardText,
   ReadClock,
   ReadDayKey,
   SaveState,
@@ -1507,6 +1508,46 @@ describe('update', () => {
         message(Message.SelectedPlanScope({ scope: 'many' })),
         model(next => {
           expect(next.planPromptState).toBe('stale')
+        }),
+      )
+    })
+
+    test('pasting from the clipboard fills the answer box', () => {
+      const answer = '```json\n{ "schema": "medstack.plan/1" }\n```'
+      story(
+        update,
+        given(modelWith({ planStage: 'paste' })),
+        message(Message.ClickedPlanPasteFromClipboard()),
+        Command.expectExact(ReadClipboardText),
+        Command.resolve(
+          ReadClipboardText,
+          Message.CompletedReadClipboardText({ text: answer }),
+        ),
+        model(next => {
+          expect(next.planPaste).toBe(answer)
+        }),
+      )
+    })
+
+    test('an empty clipboard says so and keeps what is already typed', () => {
+      story(
+        update,
+        given(modelWith({ planStage: 'paste', planPaste: 'typed by hand' })),
+        message(Message.CompletedReadClipboardText({ text: '   ' })),
+        model(next => {
+          expect(next.planPaste).toBe('typed by hand')
+          expect(Option.isSome(next.maybeToast)).toBe(true)
+        }),
+      )
+    })
+
+    test('a refused clipboard asks for the long-press instead', () => {
+      story(
+        update,
+        given(modelWith({ planStage: 'paste' })),
+        message(Message.FailedReadClipboardText()),
+        model(next => {
+          expect(Option.isSome(next.maybeToast)).toBe(true)
         }),
       )
     })

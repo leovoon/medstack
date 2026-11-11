@@ -75,6 +75,40 @@ export const actionButtonClassName = primaryButtonClassName + ' gap-2'
 
 export const quietActionButtonClassName = secondaryButtonClassName + ' gap-2'
 
+/**
+ * Reading a label has nothing to report while it works, so the eye blinks and a bar sweeps:
+ * motion for "still going", without inventing a percentage. The fields it is about to fill sit
+ * below and are disabled meanwhile, so typing cannot race the text that is coming back.
+ */
+export const readingLabelView = (h: HtmlBuilder<Message>): Html =>
+  h.div(
+    [h.Class('mb-4'), h.Role('status')],
+    [
+      h.div(
+        [h.Class('flex items-center gap-2')],
+        [
+          icon('eye', h, 'h-5 w-5 shrink-0 text-[var(--ms-accent)] ms-blink'),
+          h.span(
+            [h.Class('text-sm text-[var(--ms-text)]')],
+            ['Reading the label'],
+          ),
+        ],
+      ),
+      h.div(
+        [
+          h.Class(
+            'mt-2 h-0.5 rounded-full bg-[var(--ms-border)] overflow-hidden',
+          ),
+        ],
+        [
+          h.div([
+            h.Class('ms-sweep h-full w-1/3 rounded-full bg-[var(--ms-accent)]'),
+          ]),
+        ],
+      ),
+    ],
+  )
+
 export const dotsView = (
   routine: Routine,
   doses: Model['doses'],

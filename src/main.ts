@@ -18,6 +18,7 @@ export {
   MakeLabelThumbnail,
   MarkRoutineReviewed,
   PlayWaitEndSound,
+  ReadClipboardText,
   ReadClock,
   ReadDayKey,
   ReadImportFile,

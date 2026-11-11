@@ -228,6 +228,24 @@ export const CopyPlanPrompt = Command.define('CopyPlanPrompt', {
     ),
 })
 
+/**
+ * The paste box is 224px of empty space on a phone, and long-pressing it is the fiddliest
+ * gesture the plan round trip asks for. The button is one tap and the browser explains itself.
+ */
+export const ReadClipboardText = Command.define('ReadClipboardText', {
+  messages: [
+    Message.CompletedReadClipboardText,
+    Message.FailedReadClipboardText,
+  ],
+  execute: Effect.tryPromise({
+    try: () => navigator.clipboard.readText(),
+    catch: () => new Error('clipboard unavailable'),
+  }).pipe(
+    Effect.map(text => Message.CompletedReadClipboardText({ text })),
+    Effect.catch(() => Effect.succeed(Message.FailedReadClipboardText())),
+  ),
+})
+
 export const ImportPlan = Command.define('ImportPlan', {
   args: { text: Schema.String },
   messages: [Message.SucceededImportPlan, Message.FailedImportPlan],
