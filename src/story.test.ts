@@ -1235,6 +1235,58 @@ describe('update', () => {
       )
     })
 
+    test('a plan photo fills both ask boxes', () => {
+      story(
+        update,
+        given(modelWith({ page: Page.Plan() })),
+        message(
+          Message.CompletedLabelText({
+            text: 'CLOBETASOL PROPIONATE\nApply thinly twice a day',
+          }),
+        ),
+        model(next => {
+          expect(next.planMedicine).toBe('CLOBETASOL PROPIONATE')
+          expect(next.planLabel).toBe(
+            'CLOBETASOL PROPIONATE\nApply thinly twice a day',
+          )
+          expect(next.labelStatus).toBe('idle')
+          expect(Option.isNone(next.maybeProductDraft)).toBe(true)
+        }),
+      )
+    })
+
+    test('a plan photo keeps the words already typed', () => {
+      story(
+        update,
+        given(
+          modelWith({
+            page: Page.Plan(),
+            planMedicine: 'My cream',
+            planLabel: 'Twice a day',
+          }),
+        ),
+        message(Message.CompletedLabelText({ text: 'SOMETHING ELSE' })),
+        model(next => {
+          expect(next.planMedicine).toBe('My cream')
+          expect(next.planLabel).toBe('Twice a day')
+        }),
+      )
+    })
+
+    test('a failed read on the plan screen asks for typing', () => {
+      story(
+        update,
+        given(modelWith({ page: Page.Plan() })),
+        message(Message.FailedLabelText()),
+        model(next => {
+          expect(next.labelStatus).toBe('failed')
+          expect(next.maybeToast).toStrictEqual(
+            Option.some('Could not read the label. Type what it says.'),
+          )
+        }),
+      )
+    })
+
     test('a failed read says so and keeps the form', () => {
       story(
         update,

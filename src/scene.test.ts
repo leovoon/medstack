@@ -508,6 +508,9 @@ describe('view', () => {
       { update, view },
       given(model),
       expect(role('button', { name: 'Copy the prompt' })).toExist(),
+      expect(role('button', { name: 'Take a photo of the label' })).toExist(),
+      expect(text('What did the doctor give you?')).toExist(),
+      expect(text('Copy what the label says')).toExist(),
       expect(text('Open ChatGPT')).toExist(),
       expect(role('button', { name: 'I have the answer' })).toExist(),
     )

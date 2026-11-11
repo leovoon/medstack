@@ -35,6 +35,82 @@ const header = (h: HtmlBuilder<Message>): Html =>
     ],
   )
 
+/**
+ * The two things the user has to tell us live in one block, because one photo of the
+ * label is meant to fill both of them.
+ */
+const labelBlock = (model: Model, h: HtmlBuilder<Message>): Html =>
+  h.div(
+    [h.Class(cardClassName + ' mb-4')],
+    [
+      h.p(
+        [h.Class('text-base font-medium text-[var(--ms-text)]')],
+        ['The label'],
+      ),
+      h.p(
+        [h.Class(helperTextClassName + ' mb-3')],
+        [
+          'Take a photo and both boxes fill in. Fix anything it gets wrong, or type it yourself.',
+        ],
+      ),
+      h.button(
+        [
+          h.Class(secondaryButtonClassName + ' mb-4'),
+          h.Disabled(model.labelStatus === 'reading'),
+          h.OnClick(Message.ClickedPickLabelPhoto()),
+        ],
+        buttonContent(
+          model.labelStatus === 'reading'
+            ? 'Reading the label...'
+            : 'Take a photo of the label',
+          'camera',
+          h,
+        ),
+      ),
+      ...(model.labelStatus === 'failed'
+        ? [
+            h.p(
+              [h.Class(helperTextClassName + ' mb-3')],
+              ['Could not read it. Type it instead.'],
+            ),
+          ]
+        : []),
+      h.div(
+        [h.Class('mb-3')],
+        [
+          h.label(
+            [h.Class(fieldLabelClassName), h.For('plan-medicine')],
+            ['What did the doctor give you?'],
+          ),
+          h.input([
+            h.Class(inputClassName),
+            h.Id('plan-medicine'),
+            h.Value(model.planMedicine),
+            h.Placeholder('Clobetasol cream and vitamin D tablets'),
+            h.OnInput(value => Message.UpdatedPlanMedicine({ value })),
+          ]),
+        ],
+      ),
+      h.div(
+        [],
+        [
+          h.label(
+            [h.Class(fieldLabelClassName), h.For('plan-label')],
+            ['Copy what the label says'],
+          ),
+          h.textarea([
+            h.Class(inputClassName + ' !h-32 py-3'),
+            h.Id('plan-label'),
+            h.Rows(5),
+            h.Value(model.planLabel),
+            h.Placeholder('Apply thinly to affected areas twice a day.'),
+            h.OnInput(value => Message.UpdatedPlanLabel({ value })),
+          ]),
+        ],
+      ),
+    ],
+  )
+
 const askStage = (
   model: Model,
   h: HtmlBuilder<Message>,
@@ -47,39 +123,7 @@ const askStage = (
         'Fill this in, copy the prompt, and open ChatGPT. Then come back and paste the answer.',
       ],
     ),
-    h.div(
-      [h.Class('mb-4')],
-      [
-        h.label(
-          [h.Class(fieldLabelClassName), h.For('plan-medicine')],
-          ['What did the doctor give you?'],
-        ),
-        h.input([
-          h.Class(inputClassName),
-          h.Id('plan-medicine'),
-          h.Value(model.planMedicine),
-          h.Placeholder('Clobetasol cream and vitamin D tablets'),
-          h.OnInput(value => Message.UpdatedPlanMedicine({ value })),
-        ]),
-      ],
-    ),
-    h.div(
-      [h.Class('mb-4')],
-      [
-        h.label(
-          [h.Class(fieldLabelClassName), h.For('plan-label')],
-          ['Copy what the label says'],
-        ),
-        h.textarea([
-          h.Class(inputClassName + ' !h-32 py-3'),
-          h.Id('plan-label'),
-          h.Rows(5),
-          h.Value(model.planLabel),
-          h.Placeholder('Apply thinly to affected areas twice a day.'),
-          h.OnInput(value => Message.UpdatedPlanLabel({ value })),
-        ]),
-      ],
-    ),
+    labelBlock(model, h),
     h.button(
       [
         h.Class(primaryButtonClassName + ' gap-2'),

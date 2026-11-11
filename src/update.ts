@@ -296,7 +296,10 @@ export const update = (model: Model, message: Message) =>
         onNone: () => ({ model }),
         onSome: file => ({
           model: { ...model, labelStatus: 'reading' as const },
-          commands: [MakeLabelThumbnail({ file }), ReadLabelText({ file })],
+          commands:
+            model.page._tag === 'Plan'
+              ? [ReadLabelText({ file })]
+              : [MakeLabelThumbnail({ file }), ReadLabelText({ file })],
         }),
       }),
     CompletedLabelThumbnail: ({ thumbnail }) =>
@@ -304,23 +307,40 @@ export const update = (model: Model, message: Message) =>
     FailedLabelThumbnail: () => ({
       model: { ...model, labelStatus: 'failed' as const },
     }),
-    CompletedLabelText: ({ text }) => ({
-      model: {
-        ...updateProductDraft(model, draft => {
-          const name = labelNameFromText(text)
-          return {
-            ...draft,
-            name: draft.name.trim() === '' ? name : draft.name,
+    CompletedLabelText: ({ text }) =>
+      model.page._tag === 'Plan'
+        ? {
+            model: modifyFields(model, {
+              planMedicine: () =>
+                model.planMedicine.trim() === ''
+                  ? labelNameFromText(text)
+                  : model.planMedicine,
+              planLabel: () =>
+                model.planLabel.trim() === '' ? text.trim() : model.planLabel,
+              labelStatus: () => 'idle' as const,
+            }),
           }
-        }).model,
-        labelStatus: 'idle' as const,
-      },
-    }),
+        : {
+            model: {
+              ...updateProductDraft(model, draft => {
+                const name = labelNameFromText(text)
+                return {
+                  ...draft,
+                  name: draft.name.trim() === '' ? name : draft.name,
+                }
+              }).model,
+              labelStatus: 'idle' as const,
+            },
+          },
     FailedLabelText: () => ({
       model: {
         ...model,
         labelStatus: 'failed' as const,
-        maybeToast: Option.some('Could not read the label. Type the name.'),
+        maybeToast: Option.some(
+          model.page._tag === 'Plan'
+            ? 'Could not read the label. Type what it says.'
+            : 'Could not read the label. Type the name.',
+        ),
       },
     }),
     ClickedProductBack: () =>

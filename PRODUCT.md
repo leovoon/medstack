@@ -293,7 +293,10 @@ new or edited; nothing is a single wall of fields.
 Reached from the Today setup panel and from Settings. The app never calls a network; the user
 moves the text.
 
-- **Ask:** two inputs (`What did the doctor give you?`, `Copy what the label says`) and a
+- **Ask:** one labelled block — `The label` — holding `Take a photo of the label` above the two
+  inputs (`What did the doctor give you?`, `Copy what the label says`). The photo is read by the
+  same on-device OCR as §3.10 and fills both boxes (the doctor box gets the strongest drug-name
+  line), and anything already typed is never overwritten. Then a
   `Copy the prompt` button that puts a self-contained prompt on the clipboard. The prompt
   carries the patient input, the `medstack.plan/1` shape, and the hard rules: use only the
   label, mark gaps as questions, never guess a dose or a wait, output one ```json block.
@@ -336,10 +339,12 @@ Disclosure per day, most recent day open by default. Empty state: "Nothing logge
 ### 3.10 Label photo and text reading (on-device OCR)
 
 Typing `Clobetasol propionate 0.05%` one-handed is the worst part of adding a product, so step 1
-of the wizard offers a camera.
+of the wizard offers a camera — and so does `Get a plan`, where the same photo fills both ask boxes
+(§3.9).
 
-- `Take a photo of the label` opens the phone camera (`<input type="file" accept="image/*"
-  capture="environment">`, no `getUserMedia`, no permission prompt beyond the OS one).
+- `Take a photo of the label` opens the phone's photo picker through `<input type="file"
+  accept="image/*">`, which offers `Take Photo` on iOS and Android, so the camera is one tap
+  away. No `getUserMedia`, no permission prompt beyond the OS one.
 - Two things happen at once: a 112×112 WebP thumbnail is cut from the photo, and the same photo is
   downscaled to 1600 px and read by Tesseract.js running as WASM **on the device**.
 - The first line that looks like a drug name (letters, not an `NDC`/`Lot`/`Exp` line, ≥ 3 letters)
