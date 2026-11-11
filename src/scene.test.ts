@@ -282,7 +282,7 @@ describe('view', () => {
       { update, view },
       given(
         modelWith({
-          products: [product('a', { name: 'Clobetasol' })],
+          products: [product('a', { name: 'Hydrocortisone' })],
           page: Page.RoutineEditor({ routineId: Option.none() }),
           routineWizardStep: 1,
           maybeRoutineDraft: Option.some({
@@ -296,7 +296,7 @@ describe('view', () => {
         }),
       ),
       expect(text('Which products, in what order?')).toExist(),
-      expect(role('button', { name: /Clobetasol/ })).toExist(),
+      expect(role('button', { name: /Hydrocortisone/ })).toExist(),
     )
   })
 
@@ -466,7 +466,7 @@ describe('view', () => {
       Option.some({
         maybeProductId: Option.none(),
         wizardStep,
-        name: 'Clobetasol',
+        name: 'Hydrocortisone',
         strength: '',
         kind: 'Cream' as const,
         amount: '',
@@ -502,7 +502,7 @@ describe('view', () => {
     const model = modelWith({
       page: Page.Plan(),
       planStage: 'ask',
-      planMedicine: 'Clobetasol',
+      planMedicine: 'Hydrocortisone',
     })
     scene(
       { update, view },
@@ -523,7 +523,7 @@ describe('view', () => {
   test('a copied prompt stays marked, so the next move is on screen', () => {
     const model = modelWith({
       page: Page.Plan(),
-      planMedicine: 'Clobetasol',
+      planMedicine: 'Hydrocortisone',
       planPromptState: 'copied',
     })
     scene(
@@ -554,7 +554,7 @@ describe('view', () => {
   test('a field being read from a photo is disabled until the read ends', () => {
     const model = modelWith({
       page: Page.Plan(),
-      planMedicine: 'Clobetasol',
+      planMedicine: 'Hydrocortisone',
       labelStatus: 'reading',
     })
     scene(

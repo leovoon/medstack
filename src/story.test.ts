@@ -158,7 +158,9 @@ describe('update', () => {
     test('adds a new product and saves it', () => {
       const inputModel = modelWith({
         page: Page.ProductEditor({ productId: Option.none() }),
-        maybeProductDraft: Option.some(productDraft({ name: 'Clobetasol' })),
+        maybeProductDraft: Option.some(
+          productDraft({ name: 'Hydrocortisone' }),
+        ),
       })
       story(
         update,
@@ -173,7 +175,7 @@ describe('update', () => {
         Command.resolve(SaveState, Message.SucceededSaveState()),
         model(next => {
           expect(next.products).toHaveLength(1)
-          expect(next.products[0]?.name).toBe('Clobetasol')
+          expect(next.products[0]?.name).toBe('Hydrocortisone')
           expect(next.products[0]?.origin).toStrictEqual(Origin.Manual())
           expect(next.page).toStrictEqual(Page.Products())
         }),
@@ -1194,12 +1196,12 @@ describe('update', () => {
         given(draftModel({})),
         message(
           Message.CompletedLabelText({
-            text: 'CLOBETASOL PROPIONATE\nCream 0.05%\nApply twice daily',
+            text: 'HYDROCORTISONE CREAM\nCream 1%\nApply twice daily',
           }),
         ),
         model(next => {
           expect(Option.getOrThrow(next.maybeProductDraft).name).toBe(
-            'CLOBETASOL PROPIONATE',
+            'HYDROCORTISONE CREAM',
           )
           expect(next.labelStatus).toBe('idle')
         }),
@@ -1210,7 +1212,7 @@ describe('update', () => {
       story(
         update,
         given(draftModel({ name: 'My cream' })),
-        message(Message.CompletedLabelText({ text: 'CLOBETASOL PROPIONATE' })),
+        message(Message.CompletedLabelText({ text: 'HYDROCORTISONE CREAM' })),
         model(next => {
           expect(Option.getOrThrow(next.maybeProductDraft).name).toBe(
             'My cream',
@@ -1242,14 +1244,14 @@ describe('update', () => {
         given(modelWith({ page: Page.Plan() })),
         message(
           Message.CompletedLabelPhotos({
-            texts: ['CLOBETASOL PROPIONATE\nApply thinly twice a day'],
+            texts: ['HYDROCORTISONE CREAM\nApply thinly twice a day'],
             failedCount: 0,
           }),
         ),
         model(next => {
-          expect(next.planMedicine).toBe('CLOBETASOL PROPIONATE')
+          expect(next.planMedicine).toBe('HYDROCORTISONE CREAM')
           expect(next.planLabel).toBe(
-            'CLOBETASOL PROPIONATE\nApply thinly twice a day',
+            'HYDROCORTISONE CREAM\nApply thinly twice a day',
           )
           expect(next.labelStatus).toBe('idle')
           expect(Option.isNone(next.maybeProductDraft)).toBe(true)
@@ -1264,18 +1266,18 @@ describe('update', () => {
         message(
           Message.CompletedLabelPhotos({
             texts: [
-              'CLOBETASOL PROPIONATE\nApply thinly twice a day',
-              'CALCIPOTRIOL OINTMENT\nOnce at night',
+              'HYDROCORTISONE CREAM\nApply thinly twice a day',
+              'KETOCONAZOLE OINTMENT\nOnce at night',
             ],
             failedCount: 0,
           }),
         ),
         model(next => {
           expect(next.planMedicine).toBe(
-            'CLOBETASOL PROPIONATE, CALCIPOTRIOL OINTMENT',
+            'HYDROCORTISONE CREAM, KETOCONAZOLE OINTMENT',
           )
           expect(next.planLabel).toBe(
-            'CLOBETASOL PROPIONATE\nApply thinly twice a day\n\nCALCIPOTRIOL OINTMENT\nOnce at night',
+            'HYDROCORTISONE CREAM\nApply thinly twice a day\n\nKETOCONAZOLE OINTMENT\nOnce at night',
           )
         }),
       )
@@ -1310,19 +1312,19 @@ describe('update', () => {
         given(
           modelWith({
             page: Page.Plan(),
-            planMedicine: 'CLOBETASOL PROPIONATE',
-            planLabel: 'CLOBETASOL PROPIONATE\nApply thinly',
+            planMedicine: 'HYDROCORTISONE CREAM',
+            planLabel: 'HYDROCORTISONE CREAM\nApply thinly',
           }),
         ),
         message(
           Message.CompletedLabelPhotos({
-            texts: ['CLOBETASOL PROPIONATE\nApply thinly'],
+            texts: ['HYDROCORTISONE CREAM\nApply thinly'],
             failedCount: 0,
           }),
         ),
         model(next => {
-          expect(next.planMedicine).toBe('CLOBETASOL PROPIONATE')
-          expect(next.planLabel).toBe('CLOBETASOL PROPIONATE\nApply thinly')
+          expect(next.planMedicine).toBe('HYDROCORTISONE CREAM')
+          expect(next.planLabel).toBe('HYDROCORTISONE CREAM\nApply thinly')
         }),
       )
     })
@@ -1333,12 +1335,12 @@ describe('update', () => {
         given(modelWith({ page: Page.Plan() })),
         message(
           Message.CompletedLabelPhotos({
-            texts: ['CLOBETASOL PROPIONATE'],
+            texts: ['HYDROCORTISONE CREAM'],
             failedCount: 1,
           }),
         ),
         model(next => {
-          expect(next.planMedicine).toBe('CLOBETASOL PROPIONATE')
+          expect(next.planMedicine).toBe('HYDROCORTISONE CREAM')
           expect(next.maybeToast).toStrictEqual(
             Option.some('Read 1 of 2 photos. Type the rest.'),
           )
@@ -1375,7 +1377,7 @@ describe('update', () => {
     test('a failed read says so and keeps the form', () => {
       story(
         update,
-        given(draftModel({ name: 'Clobetasol' })),
+        given(draftModel({ name: 'Hydrocortisone' })),
         message(Message.FailedLabelText()),
         model(next => {
           expect(next.labelStatus).toBe('failed')
@@ -1383,7 +1385,7 @@ describe('update', () => {
             Option.some('Could not read the label. Type the name.'),
           )
           expect(Option.getOrThrow(next.maybeProductDraft).name).toBe(
-            'Clobetasol',
+            'Hydrocortisone',
           )
         }),
       )
@@ -1406,7 +1408,7 @@ describe('update', () => {
         createdAt: '2026-11-10T13:00:00Z',
         products: [
           {
-            name: 'Clobetasol propionate',
+            name: 'Hydrocortisone',
             strength: '0.05%',
             form: 'cream',
             amount: 'thin layer',
@@ -1421,7 +1423,7 @@ describe('update', () => {
             time: '21:30',
             detail: 'thin layer first',
             steps: [
-              { productName: 'Clobetasol propionate', waitMinutes: 20 },
+              { productName: 'Hydrocortisone', waitMinutes: 20 },
               { productName: 'Emollient', waitMinutes: 0 },
             ],
           },
@@ -1437,22 +1439,26 @@ describe('update', () => {
     ].join('\n')
 
     test('the prompt carries the schema and the patient input', () => {
-      const prompt = planPrompt('Clobetasol cream', 'Apply twice a day.', 'one')
+      const prompt = planPrompt(
+        'Hydrocortisone cream',
+        'Apply twice a day.',
+        'one',
+      )
       expect(prompt).toContain('medstack.plan/1')
-      expect(prompt).toContain('Clobetasol cream')
+      expect(prompt).toContain('Hydrocortisone cream')
       expect(prompt).toContain('Apply twice a day.')
       expect(prompt).toContain('Never guess')
       expect(prompt).toContain('pharmacistQuestions')
     })
 
     test('one plan keeps its steps in one routine per time of day', () => {
-      const prompt = planPrompt('Clobetasol', 'Twice a day.', 'one')
+      const prompt = planPrompt('Hydrocortisone', 'Twice a day.', 'one')
       expect(prompt).toContain('This is one plan.')
       expect(prompt).not.toContain('These are separate plans.')
     })
 
     test('several plans each get their own routine', () => {
-      const prompt = planPrompt('Clobetasol', 'Twice a day.', 'many')
+      const prompt = planPrompt('Hydrocortisone', 'Twice a day.', 'many')
       expect(prompt).toContain('These are separate plans.')
       expect(prompt).toContain('one label block per plan')
     })
@@ -1471,7 +1477,7 @@ describe('update', () => {
     test('copying the prompt emits the clipboard command', () => {
       story(
         update,
-        given(modelWith({ planMedicine: 'Clobetasol' })),
+        given(modelWith({ planMedicine: 'Hydrocortisone' })),
         message(Message.ClickedCopyPlanPrompt()),
         Command.expectExact(CopyPlanPrompt),
         Command.resolve(CopyPlanPrompt, Message.CompletedCopyPlanPrompt()),
@@ -1485,7 +1491,7 @@ describe('update', () => {
     test('a blocked clipboard leaves the prompt marked failed', () => {
       story(
         update,
-        given(modelWith({ planMedicine: 'Clobetasol' })),
+        given(modelWith({ planMedicine: 'Hydrocortisone' })),
         message(Message.FailedCopyPlanPrompt()),
         model(next => {
           expect(next.planPromptState).toBe('failed')
@@ -1497,7 +1503,7 @@ describe('update', () => {
       story(
         update,
         given(modelWith({ planPromptState: 'copied' })),
-        message(Message.UpdatedPlanMedicine({ value: 'Clobetasol' })),
+        message(Message.UpdatedPlanMedicine({ value: 'Hydrocortisone' })),
         model(next => {
           expect(next.planPromptState).toBe('stale')
         }),
@@ -1606,7 +1612,7 @@ describe('update', () => {
         },
         5000,
       )
-      const existing = product('p1', { name: 'Clobetasol propionate' })
+      const existing = product('p1', { name: 'Hydrocortisone' })
       const merged = mergePlanImport(
         [existing],
         [

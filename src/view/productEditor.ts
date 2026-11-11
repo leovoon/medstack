@@ -415,7 +415,7 @@ export const productEditorView = (
                 'product-name',
                 'Name',
                 draft.name,
-                'Clobetasol propionate',
+                'Hydrocortisone',
                 value => Message.UpdatedProductName({ value }),
                 h,
                 model.labelStatus === 'reading',

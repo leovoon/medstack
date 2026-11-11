@@ -3,13 +3,13 @@
 **One line:** A private, offline routine tracker that answers two questions at the moment
 they matter — *what goes on next?* and *how long do I wait?*
 
-**Why it exists.** Leo came home from the doctor with several ointments and medicines. The
-label tube says nothing about sequence, and nothing about the gap between one cream and the
-next. He applies them late, in a dim room, half asleep, one-handed, and forgets what he
-already did today. This app is the answer sheet he wishes the pharmacy had printed.
+**Why it exists.** A regimen of several ointments and medicines comes with no sequence printed
+on the tube, and nothing about the gap between one cream and the next. It gets applied late, in
+a dim room, half asleep, one-handed, and what was already done today is forgotten. This app is
+the answer sheet the pharmacy should have printed.
 
-Everything here is **his own data, entered by him**. The app never invents a regimen, never
-loads a medical preset, and never phones home.
+Everything here is **one person's own data, entered by hand**. The app never invents a regimen,
+never loads a medical preset, and never phones home.
 
 ---
 
@@ -31,8 +31,8 @@ loads a medical preset, and never phones home.
 
 Three nouns. Keep the vocabulary exact in code, copy, and tests.
 
-- **Product** — one thing from a tube, bottle, or box. `Clobetasol propionate 0.05%`,
-  `Menthol 1% in aqueous cream`, `Vitamin D 1000 IU`.
+- **Product** — one thing from a tube, bottle, or box. `Hydrocortisone 1%`,
+  `Emollient cream`, `Ibuprofen 200 mg`.
 - **Routine** — a named, ordered sequence of products for one occasion in the day.
   `Morning`, `Night`, `After shower`. Order is the whole point.
 - **Dose** — one recorded application/intake of one product. The log. Immutable once written
@@ -201,7 +201,7 @@ Full-height, one decision per screen. No bottom bar.
   `Amount`, `Where`, `Wait` ("then 20 min before the next step"), `Note`. Two actions:
   primary `Applied` (or `Taken`), secondary `Skip`.
 - **Waiting state**: replaces the step card, keeps the whole screen calm —
-  the step just done in small text ("Clobetasol propionate ✓ 20:41"), then a large
+  the step just done in small text ("Hydrocortisone ✓ 20:41"), then a large
   `mm:ss` countdown (`tabular-nums`, 5xl–6xl) with a thin circular or linear progress
   indicator that is CSS-only and `prefers-reduced-motion`-safe, then `Next: Night cream`.
   Primary `Next` is disabled and its label reads the remaining time; secondary
@@ -240,7 +240,7 @@ same on every visit, new or edited:
   already in the routine the list is replaced by *"Every product is already in this routine."*,
   and with no products at all, *"Add a product first, then come back and put it in order."*
 - Warning row when a step's wait conflicts with its product default:
-  "Clobetasol is set to 20 min, this step waits 5." → tap to reset to 20. Informational only.
+  "Hydrocortisone is set to 20 min, this step waits 5." → tap to reset to 20. Informational only.
 - Helper text under the steps, muted, non-prescriptive:
   *"Thin medicated creams first, thick emollients and ointments last. Use the wait your doctor
   or pharmacist gave you."*
@@ -284,7 +284,7 @@ new or edited; nothing is a single wall of fields.
 - Every chip and action button in the wizard carries a line icon to the left of its text
   (see §7); the icon never replaces the label.
 - Delete (existing products only) sits on step 7, below save, via `Dialog`: **"Delete
-  Clobetasol propionate? It is in 1 routine. Past doses are kept."** — deleting removes the
+  Hydrocortisone? It is in 1 routine. Past doses are kept."** — deleting removes the
   product from any routine steps, and a routine that ends up with 0 steps is kept but flagged
   `Needs a step` and hidden from Today.
 
@@ -362,7 +362,7 @@ Disclosure per day, most recent day open by default. Empty state: "Nothing logge
 
 ### 3.10 Label photo and text reading (on-device OCR)
 
-Typing `Clobetasol propionate 0.05%` one-handed is the worst part of adding a product, so step 1
+Typing `Hydrocortisone 1%` one-handed is the worst part of adding a product, so step 1
 of the wizard offers a camera — and so does `Get a plan`, where the same photo fills both ask boxes
 (§3.9).
 

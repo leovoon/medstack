@@ -128,7 +128,7 @@ const labelBlock = (model: Model, h: HtmlBuilder<Message>): Html =>
             h.Class(inputClassName),
             h.Id('plan-medicine'),
             h.Value(model.planMedicine),
-            h.Placeholder('Clobetasol cream and vitamin D tablets'),
+            h.Placeholder('Hydrocortisone cream and ibuprofen tablets'),
             h.Disabled(model.labelStatus === 'reading'),
             h.OnInput(value => Message.UpdatedPlanMedicine({ value })),
           ]),
